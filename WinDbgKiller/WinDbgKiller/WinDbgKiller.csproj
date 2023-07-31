@@ -1,0 +1,195 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{B2039C1B-F662-4F3D-9908-52DF4D343843}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <RootNamespace>WinDbgKiller</RootNamespace>
+    <AssemblyName>WinDbgKiller</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\x64\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <LangVersion>7.3</LangVersion>
+    <ErrorReport>prompt</ErrorReport>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="CsDebugScript.ClrMdProvider, Version=1.4.0.355, Culture=neutral, PublicKeyToken=3a5f07d24fadcaec, processorArchitecture=MSIL">
+      <HintPath>..\packages\CsDebugScript.ClrMdProvider.1.4.0.355\lib\net461\CsDebugScript.ClrMdProvider.dll</HintPath>
+    </Reference>
+    <Reference Include="CsDebugScript.DbgEng, Version=1.4.0.355, Culture=neutral, PublicKeyToken=3a5f07d24fadcaec, processorArchitecture=MSIL">
+      <HintPath>..\packages\CsDebugScript.DbgEng.1.4.0.355\lib\net461\CsDebugScript.DbgEng.dll</HintPath>
+    </Reference>
+    <Reference Include="CsDebugScript.DiaSymbolProvider, Version=1.4.0.355, Culture=neutral, PublicKeyToken=3a5f07d24fadcaec, processorArchitecture=MSIL">
+      <HintPath>..\packages\CsDebugScript.DiaSymbolProvider.1.4.0.355\lib\net461\CsDebugScript.DiaSymbolProvider.dll</HintPath>
+    </Reference>
+    <Reference Include="CsDebugScript.Drawing.Interfaces, Version=1.4.0.355, Culture=neutral, PublicKeyToken=3a5f07d24fadcaec, processorArchitecture=MSIL">
+      <HintPath>..\packages\CsDebugScript.Drawing.Interfaces.1.4.0.355\lib\net461\CsDebugScript.Drawing.Interfaces.dll</HintPath>
+    </Reference>
+    <Reference Include="CsDebugScript.Engine, Version=1.4.0.355, Culture=neutral, PublicKeyToken=3a5f07d24fadcaec, processorArchitecture=MSIL">
+      <HintPath>..\packages\CsDebugScript.Engine.1.4.0.355\lib\net461\CsDebugScript.Engine.dll</HintPath>
+    </Reference>
+    <Reference Include="DebugHelp, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\packages\DebugHelp.0.4.3\lib\net40\DebugHelp.dll</HintPath>
+    </Reference>
+    <Reference Include="DIA, Version=1.0.2.0, Culture=neutral, PublicKeyToken=656084dbcadfc976, processorArchitecture=MSIL">
+      <HintPath>..\packages\DIA.1.0.2\lib\net461\DIA.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.Diagnostics.Runtime, Version=0.8.31.0, Culture=neutral, PublicKeyToken=ad64f17865634a67, processorArchitecture=MSIL">
+      <HintPath>..\packages\CsDebugScript.ClrMdProvider.1.4.0.355\lib\net461\Microsoft.Diagnostics.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.IO.FileSystem, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.FileSystem.4.3.0\lib\net46\System.IO.FileSystem.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.IO.FileSystem.Primitives, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.FileSystem.Primitives.4.3.0\lib\net46\System.IO.FileSystem.Primitives.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.IO.MemoryMappedFiles, Version=4.0.1.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.MemoryMappedFiles.4.3.0\lib\net46\System.IO.MemoryMappedFiles.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.IO.UnmanagedMemoryStream, Version=4.0.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.IO.UnmanagedMemoryStream.4.3.0\lib\net46\System.IO.UnmanagedMemoryStream.dll</HintPath>
+      <Private>True</Private>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Reflection.TypeExtensions, Version=4.1.2.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\packages\System.Reflection.TypeExtensions.4.4.0\lib\net461\System.Reflection.TypeExtensions.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Deployment" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="DbgEngine.cs" />
+    <Compile Include="FrmMain.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmMain.Designer.cs">
+      <DependentUpon>FrmMain.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="FrmMain.resx">
+      <DependentUpon>FrmMain.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+    <None Include="app.manifest" />
+    <None Include="packages.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="amd64\srcsrv.dll" />
+    <Content Include="amd64\symsrv.dll" />
+    <Content Include="arm64\srcsrv.dll" />
+    <Content Include="arm64\symsrv.dll" />
+    <Content Include="x86\srcsrv.dll" />
+    <Content Include="x86\symsrv.dll" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="..\packages\Microsoft.Debugging.Platform.SymSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SymSrv.targets" Condition="Exists('..\packages\Microsoft.Debugging.Platform.SymSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SymSrv.targets')" />
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\Microsoft.Debugging.Platform.SymSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SymSrv.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Debugging.Platform.SymSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SymSrv.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets'))" />
+  </Target>
+  <Import Project="..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets" Condition="Exists('..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets')" />
+</Project>
