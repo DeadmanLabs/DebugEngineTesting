@@ -39,6 +39,7 @@ namespace WinDbgKiller
 
         private void Form1_Load(object sender, EventArgs e)
         {
+            this.Text = this.Text + $" - {(Environment.Is64BitProcess ? "x64" : "x86")}";
             comboSource_DropDown(sender, e);
         }
 
@@ -162,7 +163,7 @@ namespace WinDbgKiller
             if (_engine != null)
             {
                 _engine.Execute("version");
-                _engine.Execute("g");
+                //_engine.Execute("g");
             }
         }
     }

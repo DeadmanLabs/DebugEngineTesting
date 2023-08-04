@@ -1,0 +1,6 @@
+<Project>
+  <!-- We need to set this binaries on the output folder so that they are found at runtime -->
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\tools\**\*" CopyToOutputDirectory="PreserveNewest" Visible="False" Link="%(RecursiveDir)%(FileName)%(Extension)" />
+  </ItemGroup>
+</Project>

@@ -38,9 +38,22 @@
             this.txtLog = new System.Windows.Forms.TextBox();
             this.btnLaunch = new System.Windows.Forms.Button();
             this.btnTest = new System.Windows.Forms.Button();
-            this.listView1 = new System.Windows.Forms.ListView();
-            this.listView2 = new System.Windows.Forms.ListView();
-            this.listView3 = new System.Windows.Forms.ListView();
+            this.listRegisters = new System.Windows.Forms.ListView();
+            this.listStack = new System.Windows.Forms.ListView();
+            this.listThreads = new System.Windows.Forms.ListView();
+            this.columnRegister = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnRegisterValue = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnFunction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnParameters = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnThreadId = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnEntry = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnError = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnStatus = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.listBreakpoints = new System.Windows.Forms.ListView();
+            this.columnOffset = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnInstruction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnAction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.columnComment = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -122,10 +135,10 @@
             // 
             // txtLog
             // 
-            this.txtLog.Location = new System.Drawing.Point(632, 227);
+            this.txtLog.Location = new System.Drawing.Point(16, 496);
             this.txtLog.Multiline = true;
             this.txtLog.Name = "txtLog";
-            this.txtLog.Size = new System.Drawing.Size(597, 211);
+            this.txtLog.Size = new System.Drawing.Size(1211, 229);
             this.txtLog.TabIndex = 4;
             // 
             // btnLaunch
@@ -140,7 +153,7 @@
             // 
             // btnTest
             // 
-            this.btnTest.Location = new System.Drawing.Point(1154, 198);
+            this.btnTest.Location = new System.Drawing.Point(367, 66);
             this.btnTest.Name = "btnTest";
             this.btnTest.Size = new System.Drawing.Size(75, 23);
             this.btnTest.TabIndex = 6;
@@ -148,41 +161,130 @@
             this.btnTest.UseVisualStyleBackColor = true;
             this.btnTest.Click += new System.EventHandler(this.btnTest_Click);
             // 
-            // listView1
+            // listRegisters
             // 
-            this.listView1.HideSelection = false;
-            this.listView1.Location = new System.Drawing.Point(16, 96);
-            this.listView1.Name = "listView1";
-            this.listView1.Size = new System.Drawing.Size(235, 176);
-            this.listView1.TabIndex = 7;
-            this.listView1.UseCompatibleStateImageBehavior = false;
+            this.listRegisters.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnRegister,
+            this.columnRegisterValue});
+            this.listRegisters.HideSelection = false;
+            this.listRegisters.Location = new System.Drawing.Point(16, 96);
+            this.listRegisters.Name = "listRegisters";
+            this.listRegisters.Size = new System.Drawing.Size(235, 176);
+            this.listRegisters.TabIndex = 7;
+            this.listRegisters.UseCompatibleStateImageBehavior = false;
+            this.listRegisters.View = System.Windows.Forms.View.Details;
             // 
-            // listView2
+            // listStack
             // 
-            this.listView2.HideSelection = false;
-            this.listView2.Location = new System.Drawing.Point(16, 279);
-            this.listView2.Name = "listView2";
-            this.listView2.Size = new System.Drawing.Size(235, 209);
-            this.listView2.TabIndex = 8;
-            this.listView2.UseCompatibleStateImageBehavior = false;
+            this.listStack.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnFunction,
+            this.columnParameters});
+            this.listStack.HideSelection = false;
+            this.listStack.Location = new System.Drawing.Point(16, 279);
+            this.listStack.Name = "listStack";
+            this.listStack.Size = new System.Drawing.Size(610, 209);
+            this.listStack.TabIndex = 8;
+            this.listStack.UseCompatibleStateImageBehavior = false;
+            this.listStack.View = System.Windows.Forms.View.Details;
             // 
-            // listView3
+            // listThreads
             // 
-            this.listView3.HideSelection = false;
-            this.listView3.Location = new System.Drawing.Point(258, 279);
-            this.listView3.Name = "listView3";
-            this.listView3.Size = new System.Drawing.Size(259, 209);
-            this.listView3.TabIndex = 9;
-            this.listView3.UseCompatibleStateImageBehavior = false;
+            this.listThreads.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnThreadId,
+            this.columnEntry,
+            this.columnError,
+            this.columnStatus});
+            this.listThreads.HideSelection = false;
+            this.listThreads.Location = new System.Drawing.Point(257, 95);
+            this.listThreads.Name = "listThreads";
+            this.listThreads.Size = new System.Drawing.Size(369, 177);
+            this.listThreads.TabIndex = 9;
+            this.listThreads.UseCompatibleStateImageBehavior = false;
+            this.listThreads.View = System.Windows.Forms.View.Details;
+            // 
+            // columnRegister
+            // 
+            this.columnRegister.Text = "Register";
+            this.columnRegister.Width = 90;
+            // 
+            // columnRegisterValue
+            // 
+            this.columnRegisterValue.Text = "Value";
+            this.columnRegisterValue.Width = 138;
+            // 
+            // columnFunction
+            // 
+            this.columnFunction.Text = "Function";
+            this.columnFunction.Width = 91;
+            // 
+            // columnParameters
+            // 
+            this.columnParameters.Text = "Parameters";
+            this.columnParameters.Width = 402;
+            // 
+            // columnThreadId
+            // 
+            this.columnThreadId.Text = "ID";
+            // 
+            // columnEntry
+            // 
+            this.columnEntry.Text = "Entry";
+            this.columnEntry.Width = 110;
+            // 
+            // columnError
+            // 
+            this.columnError.Text = "Last Error";
+            this.columnError.Width = 113;
+            // 
+            // columnStatus
+            // 
+            this.columnStatus.Text = "Status";
+            this.columnStatus.Width = 82;
+            // 
+            // listBreakpoints
+            // 
+            this.listBreakpoints.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
+            this.columnOffset,
+            this.columnInstruction,
+            this.columnAction,
+            this.columnComment});
+            this.listBreakpoints.HideSelection = false;
+            this.listBreakpoints.Location = new System.Drawing.Point(632, 279);
+            this.listBreakpoints.Name = "listBreakpoints";
+            this.listBreakpoints.Size = new System.Drawing.Size(376, 209);
+            this.listBreakpoints.TabIndex = 10;
+            this.listBreakpoints.UseCompatibleStateImageBehavior = false;
+            this.listBreakpoints.View = System.Windows.Forms.View.Details;
+            // 
+            // columnOffset
+            // 
+            this.columnOffset.Text = "Offset";
+            this.columnOffset.Width = 79;
+            // 
+            // columnInstruction
+            // 
+            this.columnInstruction.Text = "Instruction";
+            this.columnInstruction.Width = 96;
+            // 
+            // columnAction
+            // 
+            this.columnAction.Text = "Action";
+            this.columnAction.Width = 84;
+            // 
+            // columnComment
+            // 
+            this.columnComment.Text = "Comment";
+            this.columnComment.Width = 112;
             // 
             // FrmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1239, 500);
-            this.Controls.Add(this.listView3);
-            this.Controls.Add(this.listView2);
-            this.Controls.Add(this.listView1);
+            this.ClientSize = new System.Drawing.Size(1239, 737);
+            this.Controls.Add(this.listBreakpoints);
+            this.Controls.Add(this.listThreads);
+            this.Controls.Add(this.listStack);
+            this.Controls.Add(this.listRegisters);
             this.Controls.Add(this.btnTest);
             this.Controls.Add(this.btnLaunch);
             this.Controls.Add(this.txtLog);
@@ -212,9 +314,22 @@
         private System.Windows.Forms.TextBox txtLog;
         private System.Windows.Forms.Button btnLaunch;
         private System.Windows.Forms.Button btnTest;
-        private System.Windows.Forms.ListView listView1;
-        private System.Windows.Forms.ListView listView2;
-        private System.Windows.Forms.ListView listView3;
+        private System.Windows.Forms.ListView listRegisters;
+        private System.Windows.Forms.ListView listStack;
+        private System.Windows.Forms.ListView listThreads;
+        private System.Windows.Forms.ColumnHeader columnRegister;
+        private System.Windows.Forms.ColumnHeader columnRegisterValue;
+        private System.Windows.Forms.ColumnHeader columnFunction;
+        private System.Windows.Forms.ColumnHeader columnParameters;
+        private System.Windows.Forms.ColumnHeader columnThreadId;
+        private System.Windows.Forms.ColumnHeader columnEntry;
+        private System.Windows.Forms.ColumnHeader columnError;
+        private System.Windows.Forms.ColumnHeader columnStatus;
+        private System.Windows.Forms.ListView listBreakpoints;
+        private System.Windows.Forms.ColumnHeader columnOffset;
+        private System.Windows.Forms.ColumnHeader columnInstruction;
+        private System.Windows.Forms.ColumnHeader columnAction;
+        private System.Windows.Forms.ColumnHeader columnComment;
     }
 }
 

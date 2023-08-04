@@ -12,6 +12,9 @@ using System.Windows.Forms;
 using System.IO.Pipes;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Sockets;
+using System.Security.Cryptography;
 
 namespace WinDbgKiller
 {
@@ -134,7 +137,7 @@ namespace WinDbgKiller
     public partial class WinDbgEngine : IDisposable
     {
 
-        [DllImport("dbgeng.dll")]
+        [DllImport("dbgeng.dll", EntryPoint = "DebugCreate", CallingConvention = CallingConvention.StdCall)]
         private static extern int DebugCreate(in Guid InterfaceId, out IntPtr InterfacePtr);
         [DllImport("kernel32.dll", SetLastError = true, CallingConvention = CallingConvention.Winapi)]
         public static extern bool IsWow64Process([In] IntPtr process, [Out] out bool wow64Process);
@@ -143,6 +146,9 @@ namespace WinDbgKiller
         private static Guid IID_IDebugControl = new Guid("5182e668-105e-416e-ad92-24ef800424ba");
         private static Guid IID_IDebugSymbols = new Guid("8c31e98c-983a-48a5-9016-6fe5d667a950");
         private static Guid IID_IDebugSystemObjects = new Guid("6b86fe2c-2c4f-4f0c-9da2-d9a7d55d4871");
+        //private static Guid IID_IDebugRegisters = new Guid("");
+        //private static Guid IID_IDebugDataSpaces = new Guid("");
+        //private static Guid IID_IDebugAdvanced = new Guid("");
 
         private bool _disposed;
         private IDebugClient debugger;
@@ -153,39 +159,43 @@ namespace WinDbgKiller
         private IntPtr symbolsPtr;
         private IDebugSystemObjects debugSystemObjects;
         private IntPtr debugSystemObjectsPtr;
+        //private IDebugRegisters registers;
+        //private IntPtr registersPtr;
+        //private IDebugDataSpaces dataSpaces;
+        //private IntPtr dataSpacesPtr;
+        //private IDebugAdvanced advanced;
+        //private IntPtr advancedPtr;
 
         public WinDbgEngine()
         {
-            int HResult = DebugCreate(IID_IDebugClient, out IntPtr interfacePtr);
-            if (HResult < 0)
+            HRESULT HResult = DebugCreate(IID_IDebugClient, out IntPtr interfacePtr);
+            if (!HResult.Succeeded)
             {
                 throw new Exception($"HResult: {HResult:x}");
             }
             debugger = (IDebugClient)Marshal.GetTypedObjectForIUnknown(interfacePtr, typeof(IDebugClient));
             debuggerPtr = interfacePtr;
             HResult = Marshal.QueryInterface(debuggerPtr, ref IID_IDebugControl, out IntPtr ppv);
-            if (HResult < 0)
+            if (!HResult.Succeeded)
             {
                 throw new Exception($"HResult: {HResult:x}");
             }
             controller = (IDebugControl)Marshal.GetTypedObjectForIUnknown(ppv, typeof(IDebugControl));
             controllerPtr = ppv;
             HResult = Marshal.QueryInterface(debuggerPtr, ref IID_IDebugSymbols, out IntPtr pppv);
-            if (HResult < 0)
+            if (!HResult.Succeeded)
             {
                 throw new Exception($"HResult: {HResult:x}");
             }
             symbols = (IDebugSymbols)Marshal.GetTypedObjectForIUnknown(pppv, typeof(IDebugSymbols));
             symbolsPtr = pppv;
-            /*
-            HResult = Marshal.QueryInterface(debuggerPtr, ref IID_IDebugSystemObjects, out IntPtr ppppv);
-            if (HResult < 0)
-            {
-                throw new Exception($"HResult: {HResult:x}");
-            }
-            debugSystemObjects = (IDebugSystemObjects)Marshal.GetTypedObjectForIUnknown(ppppv, typeof(IDebugSystemObjects));
-            debugSystemObjectsPtr = ppppv;
-            */
+            //HResult = Marshal.QueryInterface(debuggerPtr, ref IID_IDebugSystemObjects, out IntPtr ppppv);
+            //if (!HResult.Succeeded)
+            //{
+            //    throw new Exception($"HResult: {HResult:x}");
+            //}
+            //debugSystemObjects = (IDebugSystemObjects)Marshal.GetTypedObjectForIUnknown(ppppv, typeof(IDebugSystemObjects));
+            //debugSystemObjectsPtr = ppppv;
         }
 
         private static bool Is32BitProcess(uint pid)
@@ -237,20 +247,25 @@ namespace WinDbgKiller
         {
             if (!Is32BitProcess(pid) != Environment.Is64BitProcess)
             {
-                DialogResult response = MessageBox.Show("The requested process has an architecture that differs from this client. Would you like to run the x32 bit client?", "Process Architecture Mismatch", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+                DialogResult response = MessageBox.Show($"The requested executable has an architecture that differs from this client ({(Is32BitProcess(pid) ? "x32" : "x64")}). Would you like to run the {(Environment.Is64BitProcess ? "x32" : "x64")} bit client?", "Executable Architecture Mismatch", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                 if (response == DialogResult.Yes)
                 {
-                    throw new NotImplementedException();
+                    Process proc = new Process();
+                    string path = Path.Combine(Directory.GetParent(Directory.GetParent(Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).FullName).FullName).FullName, $"{(Is32BitProcess(pid) ? "x86" : "x64")}\\Debug\\WinDbgKiller.exe");
+                    MessageBox.Show(path);
+                    proc.StartInfo.FileName = path;
+                    proc.StartInfo.UseShellExecute = true;
+                    proc.Start();
+                    Environment.Exit(0);
                 }
             }
-            int HResult = debugger.AttachProcess(0, pid, DEBUG_ATTACH.DEFAULT);
-            if (HResult < 0)
+            HRESULT HResult = debugger.AttachProcess(0, pid, DEBUG_ATTACH.DEFAULT);
+            if (!HResult.Succeeded)
             {
-                throw new Exception($"HResult: {HResult:x}");
+                throw new Exception($"HResult: {HResult}");
             }
             else
             {
-                controller.SetInterrupt(DEBUG_INTERRUPT.ACTIVE);
                 controller.WaitForEvent((uint)DEBUG_WAIT.DEFAULT, uint.MaxValue);
             }
         }
@@ -258,8 +273,8 @@ namespace WinDbgKiller
         public WinDbgEngine(string pipe) : this()
         {
             //IDK how to check architecture here
-            int HResult = debugger.AttachKernel(DEBUG_ATTACH.KERNEL_CONNECTION, $"com:pipe,port={pipe}");
-            if (HResult < 0)
+            HRESULT HResult = debugger.AttachKernel(DEBUG_ATTACH.KERNEL_CONNECTION, $"com:pipe,port={pipe}");
+            if (!HResult.Succeeded)
             {
                 throw new Exception($"HResult: {HResult:x}");
             }
@@ -277,16 +292,22 @@ namespace WinDbgKiller
             }
             if (Is32BitProcess(exePath) == Environment.Is64BitProcess)
             {
-                DialogResult response = MessageBox.Show("The requested executable has an architecture that differs from this client. Would you like to run the x32 bit client?", "Executable Architecture Mismatch", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
+                DialogResult response = MessageBox.Show($"The requested executable has an architecture that differs from this client ({(Is32BitProcess(exePath) ? "x32" : "x64")}). Would you like to run the {(Environment.Is64BitProcess ? "x32" : "x64")} bit client?", "Executable Architecture Mismatch", MessageBoxButtons.YesNo, MessageBoxIcon.Error);
                 if (response == DialogResult.Yes)
                 {
-                    throw new NotImplementedException();
+                    Process proc = new Process();
+                    string path = Path.Combine(Directory.GetParent(AppDomain.CurrentDomain.BaseDirectory).FullName, $"{(Is32BitProcess(exePath) ? "x86" : "x64")}/Debug/WinDbgKiller.exe");
+                    MessageBox.Show(path);
+                    proc.StartInfo.FileName = path;
+                    proc.StartInfo.UseShellExecute = true;
+                    proc.Start();
+                    Environment.Exit(0);
                 }
             }
-            int HResult = debugger.CreateProcessAndAttach(0, exePath, DEBUG_CREATE_PROCESS.DEFAULT, 0, DEBUG_ATTACH.DEFAULT);
-            if (HResult < 0)
+            HRESULT HResult = debugger.CreateProcessAndAttach(0, exePath, DEBUG_CREATE_PROCESS.NO_DEBUG_HEAP, 0, DEBUG_ATTACH.DEFAULT);
+            if (!HResult.Succeeded)
             {
-                throw new Exception($"HResult: {HResult:x}");
+                throw new Exception($"HResult: {HResult}");
             }
             else
             {
@@ -314,7 +335,7 @@ namespace WinDbgKiller
             return breakpoint;
         }
 
-        public void RemoveBreak(IntPtr offset)
+        public IDebugBreakpoint RemoveBreak(IntPtr offset)
         {
             uint breakCount;
             controller.GetNumberBreakpoints(out breakCount);
@@ -326,13 +347,18 @@ namespace WinDbgKiller
                 breakpoint.GetOffset(out currentOffset);
                 if (currentOffset == (uint)offset)
                 {
-                    int response = controller.RemoveBreakpoint(breakpoint);
-                    if (response < 0)
+                    HRESULT response = controller.RemoveBreakpoint(breakpoint);
+                    if (!response.Succeeded)
                     {
                         throw new Exception($"HResult: ${response}");
                     }
+                    else
+                    {
+                        return breakpoint;
+                    }
                 }
             }
+            return null;
         }
 
         public void Execute(string cmd)

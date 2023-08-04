@@ -145,6 +145,7 @@
     <Compile Include="FrmMain.Designer.cs">
       <DependentUpon>FrmMain.cs</DependentUpon>
     </Compile>
+    <Compile Include="HRESULT.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="FrmMain.resx">
@@ -190,6 +191,8 @@
     </PropertyGroup>
     <Error Condition="!Exists('..\packages\Microsoft.Debugging.Platform.SymSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SymSrv.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Debugging.Platform.SymSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SymSrv.targets'))" />
     <Error Condition="!Exists('..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets'))" />
+    <Error Condition="!Exists('..\packages\Microsoft.Debugging.Platform.DbgX.20230802.2.0\build\Microsoft.Debugging.Platform.DbgX.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\Microsoft.Debugging.Platform.DbgX.20230802.2.0\build\Microsoft.Debugging.Platform.DbgX.targets'))" />
   </Target>
   <Import Project="..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets" Condition="Exists('..\packages\Microsoft.Debugging.Platform.SrcSrv.20230602.930.0\build\Microsoft.Debugging.Platform.SrcSrv.targets')" />
+  <Import Project="..\packages\Microsoft.Debugging.Platform.DbgX.20230802.2.0\build\Microsoft.Debugging.Platform.DbgX.targets" Condition="Exists('..\packages\Microsoft.Debugging.Platform.DbgX.20230802.2.0\build\Microsoft.Debugging.Platform.DbgX.targets')" />
 </Project>
