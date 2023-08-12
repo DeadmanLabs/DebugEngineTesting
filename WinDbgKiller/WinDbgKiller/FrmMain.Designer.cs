@@ -39,12 +39,12 @@
             this.btnLaunch = new System.Windows.Forms.Button();
             this.btnTest = new System.Windows.Forms.Button();
             this.listRegisters = new System.Windows.Forms.ListView();
-            this.listStack = new System.Windows.Forms.ListView();
-            this.listThreads = new System.Windows.Forms.ListView();
             this.columnRegister = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnRegisterValue = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.listStack = new System.Windows.Forms.ListView();
             this.columnFunction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnParameters = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.listThreads = new System.Windows.Forms.ListView();
             this.columnThreadId = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnEntry = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnError = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -174,6 +174,16 @@
             this.listRegisters.UseCompatibleStateImageBehavior = false;
             this.listRegisters.View = System.Windows.Forms.View.Details;
             // 
+            // columnRegister
+            // 
+            this.columnRegister.Text = "Register";
+            this.columnRegister.Width = 90;
+            // 
+            // columnRegisterValue
+            // 
+            this.columnRegisterValue.Text = "Value";
+            this.columnRegisterValue.Width = 138;
+            // 
             // listStack
             // 
             this.listStack.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
@@ -186,6 +196,16 @@
             this.listStack.TabIndex = 8;
             this.listStack.UseCompatibleStateImageBehavior = false;
             this.listStack.View = System.Windows.Forms.View.Details;
+            // 
+            // columnFunction
+            // 
+            this.columnFunction.Text = "Function";
+            this.columnFunction.Width = 91;
+            // 
+            // columnParameters
+            // 
+            this.columnParameters.Text = "Parameters";
+            this.columnParameters.Width = 402;
             // 
             // listThreads
             // 
@@ -201,26 +221,6 @@
             this.listThreads.TabIndex = 9;
             this.listThreads.UseCompatibleStateImageBehavior = false;
             this.listThreads.View = System.Windows.Forms.View.Details;
-            // 
-            // columnRegister
-            // 
-            this.columnRegister.Text = "Register";
-            this.columnRegister.Width = 90;
-            // 
-            // columnRegisterValue
-            // 
-            this.columnRegisterValue.Text = "Value";
-            this.columnRegisterValue.Width = 138;
-            // 
-            // columnFunction
-            // 
-            this.columnFunction.Text = "Function";
-            this.columnFunction.Width = 91;
-            // 
-            // columnParameters
-            // 
-            this.columnParameters.Text = "Parameters";
-            this.columnParameters.Width = 402;
             // 
             // columnThreadId
             // 
@@ -294,6 +294,7 @@
             this.Controls.Add(this.label1);
             this.Name = "FrmMain";
             this.Text = "WinDbgSharp";
+            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FrmMain_FormClosing);
             this.Load += new System.EventHandler(this.Form1_Load);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
