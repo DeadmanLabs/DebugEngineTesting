@@ -12,19 +12,6 @@ using System.IO;
 using System.Data.Odbc;
 using Microsoft.Diagnostics.Runtime.Interop;
 
-using DebugHelp;
-using CsDebugScript.CLR;
-using CsDebugScript.Drawing;
-using CsDebugScript.Drawing.Interfaces;
-using CsDebugScript.Engine;
-using CsDebugScript.Engine.Debuggers;
-using CsDebugScript.Engine.Debuggers.DbgEngDllHelpers;
-using CsDebugScript.Engine.Native;
-using CsDebugScript.Engine.SymbolProviders;
-using CsDebugScript.Engine.Utility;
-using CsDebugScript.Exceptions;
-using System.CodeDom;
-
 namespace WinDbgKiller
 {
     public partial class FrmMain : Form
@@ -32,7 +19,7 @@ namespace WinDbgKiller
         private Debugger _engine;
         private Process _debuggee;
         private FormOutputHandler _outputHandler;
-        private BreakpointEventHandler _breakpointHandler;
+        private Task _processor;
         private bool _dispose = false;
         public FrmMain()
         {
@@ -73,26 +60,17 @@ namespace WinDbgKiller
             }
         }
 
-        private void btnLaunch_Click(object sender, EventArgs e)
+        private async void btnLaunch_Click(object sender, EventArgs e)
         {
-            _engine = new Debugger(new Action<string>((text) =>
-            {
-                if (txtLog.InvokeRequired)
-                {
-                    txtLog.BeginInvoke((MethodInvoker)delegate
-                    {
-                        txtLog.AppendText(text.Replace("\n", Environment.NewLine));
-                    });
-                }
-                else
-                {
-                    txtLog.AppendText(text.Replace("\n", Environment.NewLine));
-                }
-            }));
+            _engine = new Debugger();
             _engine.SetOutputText(true);
+            _engine.useCallbacks = true;
+            _engine.OnOutput += handleOutput;
+            _engine.OnStateChange += handleStateChange;
+            _engine.OnBreakpoint += handleBreakpoint;
             if (radioRunningProcess.Checked)
             {
-                if (_engine.AttachTo(int.Parse(comboSource.Text.Split(' ')[0])) == false)
+                if (await _engine.AttachTo(int.Parse(comboSource.Text.Split(' ')[0])) == false)
                 {
                     MessageBox.Show("Failed to attach!");
                     return;
@@ -101,11 +79,26 @@ namespace WinDbgKiller
             else if (radioNewProcess.Checked)
             {
                 ProcessStartInfo psInfo = new ProcessStartInfo();
-                psInfo.FileName = comboSource.Text;
+                if (comboSource.InvokeRequired)
+                {
+                    comboSource.Invoke((MethodInvoker)delegate
+                    {
+                        psInfo.FileName = comboSource.Text;
+                    });
+                }
+                else
+                {
+                    psInfo.FileName = comboSource.Text;
+                }
                 psInfo.UseShellExecute = true;
+                if (!File.Exists(psInfo.FileName))
+                {
+                    MessageBox.Show("The path to the binary was not selected or does not exist! Please select a valid binary path.", "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
                 _debuggee = Process.Start(psInfo);
 
-                if (_engine.AttachTo(_debuggee.Id) == false)
+                if (await _engine.AttachTo(_debuggee.Id) == false)
                 {
                     MessageBox.Show("Failed to attach!");
                     return;
@@ -113,7 +106,7 @@ namespace WinDbgKiller
             }
             else if (radioKernelPipe.Checked)
             {
-                if (_engine.KernelAttachTo(comboSource.Text) == false)
+                if (await _engine.KernelAttachTo(comboSource.Text) == false)
                 {
                     MessageBox.Show("Failed to attach!");
                     return;
@@ -121,12 +114,76 @@ namespace WinDbgKiller
             }
             if (_engine != null)
             {
-                MessageBox.Show("Breaking...");
                 _engine.SetInterrupt();
-                _engine.WaitForEvent();
+                await _engine.WaitForEvent();
                 txtLog.AppendText($"Successfully Attached To Process!{Environment.NewLine}");
+                MessageBox.Show("Successfully attached to the process!", "Success!");
                 txtLog.ScrollBars = ScrollBars.Vertical;
-                BeginAttack();
+                if (await _engine.IsModuleLoaded("ws2_32"))
+                {
+                    txtLog.AppendText($"Networking Detected!" + Environment.NewLine + "Hooking Recv...");
+                    IDebugBreakpoint bpRecv = await _engine.SetBreakAtFunction("ws2_32", "recv");
+                    _engine.addCallback(bpRecv, (bp) =>
+                    {
+                        MessageBox.Show("Recv Fired!");
+                    });
+                    txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Send...");
+                    IDebugBreakpoint bpSend = await _engine.SetBreakAtFunction("ws2_32", "send");
+                    _engine.addCallback(bpSend, (bp) =>
+                    {
+                        MessageBox.Show("Send Fired!");
+                    });
+                    txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Listen...");
+                    IDebugBreakpoint bpListen = await _engine.SetBreakAtFunction("ws2_32", "listen");
+                    _engine.addCallback(bpListen, (bp) =>
+                    {
+                        MessageBox.Show("Listen Fired!");
+                    });
+                    txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Accept...");
+                    IDebugBreakpoint bpAccept = await _engine.SetBreakAtFunction("ws2_32", "accept");
+                    _engine.addCallback(bpAccept, (bp) =>
+                    {
+                        MessageBox.Show("Accept Fired!");
+                    });
+                    txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Bind...");
+                    IDebugBreakpoint bpBind = await _engine.SetBreakAtFunction("ws2_32", "bind");
+                    _engine.addCallback(bpBind, (bp) =>
+                    {
+                        MessageBox.Show("Bind Fired!");
+                    });
+                    txtLog.AppendText("Done!" + Environment.NewLine);
+                    List<string> fncs = await _engine.ListFuncsInDebuggee();
+                    await _engine.Execute("bl");
+                    //txtLog.AppendText($"Breakpoint Callbacks: {string.Join(", ", _engine.readCallbacks().Keys)}");
+                    /*
+                    List<String> modules = _engine.GetAllModuleNames();
+                    foreach (string module in modules)
+                    {
+                        MessageBox.Show($"{module}", $"{modules.IndexOf(module)} / {modules.Count}");
+                    }
+                    Dictionary<string, string[]> funcs = _engine.GetAllFunctionNames();
+                    foreach (string module in funcs.Keys)
+                    {
+                        foreach (string func in funcs[module])
+                        {
+                            MessageBox.Show($"{module} -> {func}", $"{(funcs[module]).ToList().IndexOf(func)} / {funcs[module].Count()}");
+                        }
+                    }
+                    */
+                    txtLog.AppendText($"Continuing Execution...{Environment.NewLine}");
+                    await _engine.Execute("g");
+                    await _engine.WaitForEvent();
+                    MessageBox.Show("Buttholes!");
+                    await _engine.WaitForEvent();
+                    await _engine.Execute("g");
+                    MessageBox.Show("Buttholes 2!");
+                    await _engine.WaitForEvent();
+                }
+                else
+                {
+                    txtLog.AppendText($"Networking Undetected!");
+                }
+                //BeginAttack();
             }
         }
 
@@ -194,69 +251,249 @@ namespace WinDbgKiller
             }
         }
 
-        private void btnTest_Click(object sender, EventArgs e)
+        private async void btnTest_Click(object sender, EventArgs e)
         {
             if (_engine != null)
             {
                 _engine.OutputCurrentState(DEBUG_OUTCTL.THIS_CLIENT, DEBUG_CURRENT.DEFAULT);
-                _engine.Execute("version");
-                _engine.Execute("K");
+                await _engine.Execute("version");
+                await _engine.Execute("K");
             }
         }
 
         private void FrmMain_FormClosing(object sender, FormClosingEventArgs e)
         {
             _dispose = true;
-            _engine.Detach();
-            _debuggee.Kill();
+            if (_engine != null)
+            {
+                _engine.Detach();
+                _engine.OnOutput -= handleOutput;
+                _engine.OnStateChange -= handleStateChange;
+                _engine.OnBreakpoint -= handleBreakpoint;
+            }
+            if (_debuggee != null && !_debuggee.HasExited)
+            {
+                _debuggee.Kill();
+            }
+        }
+
+        private async void btnContinue_Click(object sender, EventArgs e)
+        {
+            txtLog.AppendText("Continuing..." + Environment.NewLine);
+            await _engine.Execute("g");
+        }
+
+        private async void btnCheck_Click(object sender, EventArgs e)
+        {
+            DEBUG_STATUS status;
+            int Result;
+            (Result, status) = await _engine.GetExecutionStatus();
+            MessageBox.Show(status.ToString(), "Debugger Status");
         }
 
         private void RefreshStats()
         {
+            listBreakpoints.Items.Clear();
+            listRegisters.Items.Clear();
+            listStack.Items.Clear();
+            listThreads.Items.Clear();
             if (_engine != null)
             {
-                int a;
                 //Get Threads
+                Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> registers = getRegisters(_engine);
+                foreach (KeyValuePair<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> register in registers)
+                {
+                    ListViewItem lvi = new ListViewItem();
+                    lvi.Text = register.Key.ToString();
+                    //lvi.SubItems.Add(BitConverter.ToString(register.Value.RawBytes).Replace("-", ""));
+                    listRegisters.Items.Add(lvi);
+                }
                 //Get Registers
+                List<DEBUG_STACK_FRAME> callstack = getCallstack(_engine);
+                foreach (DEBUG_STACK_FRAME call in callstack)
+                {
+                    ListViewItem lvi = new ListViewItem();
+                    StringBuilder nameBuffer = new StringBuilder(512);
+                    uint nameSize;
+                    ulong displacement;
+
+                    int hr = _engine._symbols.GetNameByOffset(call.InstructionOffset, nameBuffer, nameBuffer.Capacity, out nameSize, out displacement);
+                    if (hr != 0)
+                    {
+                        MessageBox.Show("Failed to grab name using offset");
+                        return;
+                    }
+                    string name = nameBuffer.ToString();
+                    string moduleName = name.Split('!')[0];
+                    string functionName = name.Split('!')[1];
+
+                    lvi.Text = name;
+                    listStack.Items.Add(lvi);
+                }
                 //Get Callstack
+                List<IDebugBreakpoint> breakpoints = getBreakpoints(_engine);
+                foreach (IDebugBreakpoint breakpoint in breakpoints)
+                {
+                    ListViewItem lvi = new ListViewItem();
+                    ulong offset;
+                    int hr = breakpoint.GetOffset(out offset);
+                    if (hr != 0)
+                    {
+                        MessageBox.Show("Failed to get the offset for the breakpoint!");
+                        continue;
+                    }
+                    const int MaxNameSize = 256;
+                    StringBuilder nameBuffer = new StringBuilder(MaxNameSize);
+                    uint nameSize;
+                    ulong displacement;
+
+                    hr = _engine._symbols.GetNameByOffset(offset, nameBuffer, nameBuffer.Capacity, out nameSize, out displacement);
+                    if (hr != 0)
+                    {
+                        MessageBox.Show("Failed to get the instruction for the offset");
+                        continue;
+                    }
+                    string instruction = nameBuffer.ToString();
+                    lvi.Text = offset.ToString();
+                    lvi.SubItems.Add(instruction);
+                }
                 //Get Breakpoints
             }
         }
 
-        private void BeginAttack()
+        private Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> getRegisters(Debugger dbg)
         {
-            int hr = _engine.Execute("lm");
+            Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> registers = new Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE>();
+            uint numRegisters;
+            int hr = dbg._registers.GetNumberRegisters(out numRegisters);
+            if (hr != 0)
+            {
+                MessageBox.Show("Failed to grab registers");
+                return registers;
+            }
+            StringBuilder nameBuffer = new StringBuilder(256);
+            for (uint i = 0; i < numRegisters; i++)
+            {
+                uint nameSize;
+                DEBUG_REGISTER_DESCRIPTION description;
+                hr = dbg._registers.GetDescription(i, nameBuffer, nameBuffer.Capacity, out nameSize, out description);
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Failed to get register {i} description!");
+                    continue;
+                }
+                string registerName = nameBuffer.ToString();
+                DEBUG_VALUE registerValue;
+                hr = dbg._registers.GetValue(i, out registerValue);
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Failed to get register {i} value");
+                    continue;
+                }
+                registers.Add(description, registerValue);
+            }
+            return registers;
+        }
+
+        private List<DEBUG_STACK_FRAME> getCallstack(Debugger dbg)
+        {
+            const int MaxFrames = 32;
+            DEBUG_STACK_FRAME[] frames = new DEBUG_STACK_FRAME[MaxFrames];
+            uint framesFilled;
+            int hr = dbg._control.GetStackTrace(0, 0, 0, frames, frames.Length, out framesFilled);
+            if (hr != 0)
+            {
+                MessageBox.Show("Failed to grab the callstack.");
+                return null;
+            }
+            List<DEBUG_STACK_FRAME> callStack = new List<DEBUG_STACK_FRAME>();
+            for (uint i = 0; i < framesFilled; i++)
+            {
+                callStack.Add(frames[i]);
+            }
+            return callStack;
+        }
+
+        private List<IDebugBreakpoint> getBreakpoints(Debugger dbg)
+        {
+            uint numBreakpoints;
+            int hr = dbg._control.GetNumberBreakpoints(out numBreakpoints);
+            if (hr != 0)
+            {
+                MessageBox.Show("Failed to get the number of breakpoints.");
+                return null;
+            }
+            List<IDebugBreakpoint> breakpoints = new List<IDebugBreakpoint>();
+            for (uint i = 0; i < numBreakpoints; i++)
+            {
+                IDebugBreakpoint bp;
+                hr = dbg._control.GetBreakpointByIndex(i, out bp);
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Failed to get the breakpoint {i}");
+                    continue;
+                }
+                breakpoints.Add(bp);
+            }
+            return breakpoints;
+        }
+
+        private void getThreads(Debugger dbg) //Unfinished
+        {
+            uint numThreads;
+            int hr = dbg._sysObjects.GetNumberThreads(out numThreads);
+            if (hr != 0)
+            {
+                MessageBox.Show("Failed to get the number of threads");
+                return;
+            }
+            for (uint i = 0; i < numThreads; i++)
+            {
+                uint threadId;
+                //hr = dbg._sysObjects.GetThreadIdsByIndex();
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Failed to grab thread {i}.");
+                    continue;
+                }
+
+            }
+        }
+
+        private async void BeginAttack()
+        {
+            int hr = await _engine.Execute("lm");
             if (hr != 0)
             {
                 throw new Exception($"Execution of \"lm\" failed! Error {hr}");
             }
 
-            hr = _engine.Execute("bp ws2_32!send");
-            hr = _engine.Execute("bp ws2_32!recv");
-            hr = _engine.Execute("bp ws2_32!listen");
-            hr = _engine.Execute("bp ws2_32!accept");
-            hr = _engine.Execute("g");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute("bp ws2_32!send");
+            hr = await _engine.Execute("bp ws2_32!recv");
+            hr = await _engine.Execute("bp ws2_32!listen");
+            hr = await _engine.Execute("bp ws2_32!accept");
+            hr = await _engine.Execute("g");
+            hr = await _engine.WaitForEvent();
             //listen
-            hr = _engine.Execute("g");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute("g");
+            hr = await _engine.WaitForEvent();
             //accept
-            hr = _engine.Execute("g");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute("g");
+            hr = await _engine.WaitForEvent();
             //accept
-            hr = _engine.Execute("g");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute("g");
+            hr = await _engine.WaitForEvent();
             //send
-            hr = _engine.Execute("g");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute("g");
+            hr = await _engine.WaitForEvent();
             //recv
-            hr = _engine.Execute("g");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute("g");
+            hr = await _engine.WaitForEvent();
             //Install unbreak when dealloc
             string memAddress = "0139debc";
             int breakIndex = 0;
-            hr = _engine.Execute($"bp msvcrt!free \"r {memAddress} = poi(esp+4); .if ({memAddress} == {breakIndex}) {{ bd 0; }} .else {{ gc }} \"");
-            hr = _engine.WaitForEvent();
+            hr = await _engine.Execute($"bp msvcrt!free \"r {memAddress} = poi(esp+4); .if ({memAddress} == {breakIndex}) {{ bd 0; }} .else {{ gc }} \"");
+            hr = await _engine.WaitForEvent();
             //hr = _engine.Execute("ba r 1 eax");
             //hr = _engine.Execute("u @eip L1");
             //Get Module List
@@ -264,6 +501,64 @@ namespace WinDbgKiller
             //Install Callbacks
             //Go
         }
+
+        #region Debug Handlers
+
+        private void handleOutput(object sender, OutputEventArgs e)
+        {
+            if (txtLog.InvokeRequired)
+            {
+                txtLog.Invoke((MethodInvoker)delegate
+                {
+                    txtLog.AppendText(e.Message.Replace("\n", Environment.NewLine));
+                });
+            }
+            else
+            {
+                txtLog.AppendText(e.Message.Replace("\n", Environment.NewLine));
+            }
+        }
+
+        private void handleStateChange(object sender, DebuggeeStateEventArgs e)
+        {
+            if (labelStatus.InvokeRequired)
+            {
+                labelStatus.Invoke((MethodInvoker)delegate
+                {
+                    labelStatus.Text = e.Flags.ToString();
+                });
+            }
+            else
+            {
+                labelStatus.Text = e.Flags.ToString();
+            }
+        }
+
+        private void handleBreakpoint(object sender, BreakpointEventArgs e)
+        {
+            uint expressionSize;
+            StringBuilder expression = new StringBuilder(512);
+            int hr = e.Breakpoint.GetOffsetExpression(expression, expression.Capacity, out expressionSize);
+            if (hr != 0)
+            {
+                MessageBox.Show("Failed to grab expression");
+            }
+            string formattedExpression = (expression == new StringBuilder(512)) ? "" : $" @ {expression.ToString()}";
+            MessageBox.Show($"Breakpoint Hit{formattedExpression}!");
+            if (txtLog.InvokeRequired)
+            {
+                txtLog.Invoke((MethodInvoker)delegate
+                {
+                    txtLog.AppendText($"Breakpoint Hit{formattedExpression}!" + Environment.NewLine);
+                });
+            }
+            else
+            {
+                txtLog.AppendText($"Breakpoint Hit{formattedExpression}!" + Environment.NewLine);
+            }
+        }
+
+        #endregion
     }
 
     class FormOutputHandler : IDebugOutputCallbacks
@@ -276,36 +571,11 @@ namespace WinDbgKiller
         public int Output(DEBUG_OUTPUT Mask, string Text)
         {
             MessageBox.Show(Text);
-            outputTextbox.Invoke((MethodInvoker)(() => {
+            outputTextbox.Invoke((MethodInvoker)(() =>
+            {
                 this.outputTextbox.AppendText(Text + Environment.NewLine);
             }));
             return 0;
-        }
-    }
-
-    class BreakpointEventHandler : DebugEventCallbacks
-    {
-        private FrmMain parent;
-        private Dictionary<IDebugBreakpoint, Action<IDebugBreakpoint, FrmMain>> hooks;
-        public BreakpointEventHandler(FrmMain frm) : base(frm)
-        {
-            hooks = new Dictionary<IDebugBreakpoint, Action<IDebugBreakpoint, FrmMain>>();
-        }
-
-        public override int Breakpoint(IDebugBreakpoint Bp)
-        {
-            MessageBox.Show("Breakpoint Hit!");
-            //Handle
-            if (hooks.Keys.Contains(Bp))
-            {
-                hooks[Bp](Bp, parent);
-            }
-            return 0;
-        }
-
-        public void installHook(IDebugBreakpoint Bp, Action<IDebugBreakpoint, FrmMain> Handler)
-        {
-            hooks.Add(Bp, Handler);
         }
     }
 

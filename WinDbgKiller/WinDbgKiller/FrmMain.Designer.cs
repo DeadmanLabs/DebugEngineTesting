@@ -54,6 +54,10 @@
             this.columnInstruction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnAction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnComment = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.label2 = new System.Windows.Forms.Label();
+            this.labelStatus = new System.Windows.Forms.Label();
+            this.btnContinue = new System.Windows.Forms.Button();
+            this.btnCheck = new System.Windows.Forms.Button();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -155,7 +159,7 @@
             // 
             this.btnTest.Location = new System.Drawing.Point(367, 66);
             this.btnTest.Name = "btnTest";
-            this.btnTest.Size = new System.Drawing.Size(75, 23);
+            this.btnTest.Size = new System.Drawing.Size(90, 23);
             this.btnTest.TabIndex = 6;
             this.btnTest.Text = "Test";
             this.btnTest.UseVisualStyleBackColor = true;
@@ -276,11 +280,53 @@
             this.columnComment.Text = "Comment";
             this.columnComment.Width = 112;
             // 
+            // label2
+            // 
+            this.label2.AutoSize = true;
+            this.label2.Location = new System.Drawing.Point(367, 13);
+            this.label2.Name = "label2";
+            this.label2.Size = new System.Drawing.Size(47, 16);
+            this.label2.TabIndex = 11;
+            this.label2.Text = "Status:";
+            // 
+            // labelStatus
+            // 
+            this.labelStatus.AutoSize = true;
+            this.labelStatus.Location = new System.Drawing.Point(420, 13);
+            this.labelStatus.Name = "labelStatus";
+            this.labelStatus.Size = new System.Drawing.Size(38, 16);
+            this.labelStatus.TabIndex = 12;
+            this.labelStatus.Text = "Idle...";
+            // 
+            // btnContinue
+            // 
+            this.btnContinue.Location = new System.Drawing.Point(368, 40);
+            this.btnContinue.Name = "btnContinue";
+            this.btnContinue.Size = new System.Drawing.Size(90, 23);
+            this.btnContinue.TabIndex = 13;
+            this.btnContinue.Text = "Continue";
+            this.btnContinue.UseVisualStyleBackColor = true;
+            this.btnContinue.Click += new System.EventHandler(this.btnContinue_Click);
+            // 
+            // btnCheck
+            // 
+            this.btnCheck.Location = new System.Drawing.Point(463, 66);
+            this.btnCheck.Name = "btnCheck";
+            this.btnCheck.Size = new System.Drawing.Size(103, 23);
+            this.btnCheck.TabIndex = 14;
+            this.btnCheck.Text = "Check Status";
+            this.btnCheck.UseVisualStyleBackColor = true;
+            this.btnCheck.Click += new System.EventHandler(this.btnCheck_Click);
+            // 
             // FrmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1239, 737);
+            this.Controls.Add(this.btnCheck);
+            this.Controls.Add(this.btnContinue);
+            this.Controls.Add(this.labelStatus);
+            this.Controls.Add(this.label2);
             this.Controls.Add(this.listBreakpoints);
             this.Controls.Add(this.listThreads);
             this.Controls.Add(this.listStack);
@@ -331,6 +377,10 @@
         private System.Windows.Forms.ColumnHeader columnInstruction;
         private System.Windows.Forms.ColumnHeader columnAction;
         private System.Windows.Forms.ColumnHeader columnComment;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label labelStatus;
+        private System.Windows.Forms.Button btnContinue;
+        private System.Windows.Forms.Button btnCheck;
     }
 }
 

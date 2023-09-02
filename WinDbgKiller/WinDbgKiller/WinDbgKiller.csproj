@@ -144,7 +144,6 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DbgEngine.cs" />
     <Compile Include="Debugger.cs" />
     <Compile Include="FrmMain.cs">
       <SubType>Form</SubType>
