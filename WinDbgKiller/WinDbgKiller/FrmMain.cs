@@ -384,172 +384,85 @@ namespace WinDbgKiller
             MessageBox.Show(status.ToString(), "Debugger Status");
         }
 
-        private void RefreshStats()
+        private async void RefreshStats()
         {
-            listBreakpoints.Items.Clear();
-            listRegisters.Items.Clear();
-            listStack.Items.Clear();
-            listThreads.Items.Clear();
+            //listBreakpoints.Items.Clear();
+            //listStack.Items.Clear();
+            //listThreads.Items.Clear();
             if (_engine != null)
             {
-                //Get Threads
-                Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> registers = getRegisters(_engine);
-                foreach (KeyValuePair<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> register in registers)
+                Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                if (listRegisters.InvokeRequired)
                 {
-                    ListViewItem lvi = new ListViewItem();
-                    lvi.Text = register.Key.ToString();
-                    //lvi.SubItems.Add(BitConverter.ToString(register.Value.RawBytes).Replace("-", ""));
-                    listRegisters.Items.Add(lvi);
-                }
-                //Get Registers
-                List<DEBUG_STACK_FRAME> callstack = getCallstack(_engine);
-                foreach (DEBUG_STACK_FRAME call in callstack)
-                {
-                    ListViewItem lvi = new ListViewItem();
-                    StringBuilder nameBuffer = new StringBuilder(512);
-                    uint nameSize;
-                    ulong displacement;
-
-                    int hr = _engine._symbols.GetNameByOffset(call.InstructionOffset, nameBuffer, nameBuffer.Capacity, out nameSize, out displacement);
-                    if (hr != 0)
+                    listRegisters.BeginInvoke((MethodInvoker)delegate
                     {
-                        MessageBox.Show("Failed to grab name using offset");
-                        return;
-                    }
-                    string name = nameBuffer.ToString();
-                    string moduleName = name.Split('!')[0];
-                    string functionName = name.Split('!')[1];
-
-                    lvi.Text = name;
-                    listStack.Items.Add(lvi);
+                        listRegisters.Items.Clear();
+                        foreach (KeyValuePair<DbgEngRegister, ulong> registerPair in registers)
+                        {
+                            ListViewItem lvi = new ListViewItem();
+                            lvi.Text = registerPair.Key.ToString();
+                            lvi.SubItems.Add($"0x{registerPair.Value.ToString("X")}");
+                            listRegisters.Items.Add(lvi);
+                        }
+                    });
                 }
-                //Get Callstack
-                List<IDebugBreakpoint> breakpoints = getBreakpoints(_engine);
-                foreach (IDebugBreakpoint breakpoint in breakpoints)
+                else
                 {
-                    ListViewItem lvi = new ListViewItem();
-                    ulong offset;
-                    int hr = breakpoint.GetOffset(out offset);
-                    if (hr != 0)
+                    listRegisters.Items.Clear();
+                    foreach (KeyValuePair<DbgEngRegister, ulong> registerPair in registers)
                     {
-                        MessageBox.Show("Failed to get the offset for the breakpoint!");
-                        continue;
+                        ListViewItem lvi = new ListViewItem();
+                        lvi.Text = registerPair.Key.ToString();
+                        lvi.SubItems.Add($"0x{registerPair.Value.ToString("X")}");
+                        listRegisters.Items.Add(lvi);
                     }
-                    const int MaxNameSize = 256;
-                    StringBuilder nameBuffer = new StringBuilder(MaxNameSize);
-                    uint nameSize;
-                    ulong displacement;
-
-                    hr = _engine._symbols.GetNameByOffset(offset, nameBuffer, nameBuffer.Capacity, out nameSize, out displacement);
-                    if (hr != 0)
+                }
+                List<DEBUG_STACK_FRAME> stack = await _engine.listStack();
+                if (listStack.InvokeRequired)
+                {
+                    listStack.BeginInvoke((MethodInvoker) async delegate
                     {
-                        MessageBox.Show("Failed to get the instruction for the offset");
-                        continue;
+                        listStack.Items.Clear();
+                        foreach (DEBUG_STACK_FRAME frame in stack)
+                        {
+                            /*
+                            MessageBox.Show(
+                                $"FrameNumber: {frame.FrameNumber.ToString()}{Environment.NewLine}" +
+                                $"FrameOffset: {frame.FrameOffset.ToString("X")}{Environment.NewLine}" +
+                                $"FuncTableEntry: {frame.FuncTableEntry.ToString("X")}{Environment.NewLine}" +
+                                $"InstructionOffset: {frame.InstructionOffset.ToString("X")}{Environment.NewLine}" +
+                                $"ReturnOffset: {frame.ReturnOffset.ToString("X")}{Environment.NewLine}" +
+                                $"StackOffset: {frame.StackOffset.ToString("X")}{Environment.NewLine}" +
+                                $"Virtual: {frame.Virtual.ToString()}{Environment.NewLine}"
+                            );
+                            */
+                            ListViewItem lvi = new ListViewItem();
+                            lvi.Text = await _engine.GetFunctionFromFrame(frame);
+                            lvi.SubItems.Add(frame.Virtual.ToString());
+                            listStack.Items.Add(lvi);
+                        }
+                    });
+                }
+                else
+                {
+                    listStack.Items.Clear();
+                    foreach (DEBUG_STACK_FRAME frame in stack)
+                    {
+                        MessageBox.Show(
+                            $"FrameNumber: {frame.FrameNumber.ToString()}{Environment.NewLine}" +
+                            $"FrameOffset: {frame.FrameOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"FuncTableEntry: {frame.FuncTableEntry.ToString("X")}{Environment.NewLine}" + 
+                            $"InstructionOffset: {frame.InstructionOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"ReturnOffset: {frame.ReturnOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"StackOffset: {frame.StackOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"Virtual: {frame.Virtual.ToString()}{Environment.NewLine}"
+                        );
+                        MessageBox.Show(await _engine.GetFunctionFromFrame(frame));
+                        ListViewItem lvi = new ListViewItem();
+                        lvi.Text = frame.InstructionOffset.ToString("X");
+                        lvi.SubItems.Add(frame.Virtual.ToString());
                     }
-                    string instruction = nameBuffer.ToString();
-                    lvi.Text = offset.ToString();
-                    lvi.SubItems.Add(instruction);
                 }
-                //Get Breakpoints
-            }
-        }
-
-        private Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> getRegisters(Debugger dbg)
-        {
-            Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE> registers = new Dictionary<DEBUG_REGISTER_DESCRIPTION, DEBUG_VALUE>();
-            uint numRegisters;
-            int hr = dbg._registers.GetNumberRegisters(out numRegisters);
-            if (hr != 0)
-            {
-                MessageBox.Show("Failed to grab registers");
-                return registers;
-            }
-            StringBuilder nameBuffer = new StringBuilder(256);
-            for (uint i = 0; i < numRegisters; i++)
-            {
-                uint nameSize;
-                DEBUG_REGISTER_DESCRIPTION description;
-                hr = dbg._registers.GetDescription(i, nameBuffer, nameBuffer.Capacity, out nameSize, out description);
-                if (hr != 0)
-                {
-                    MessageBox.Show($"Failed to get register {i} description!");
-                    continue;
-                }
-                string registerName = nameBuffer.ToString();
-                DEBUG_VALUE registerValue;
-                hr = dbg._registers.GetValue(i, out registerValue);
-                if (hr != 0)
-                {
-                    MessageBox.Show($"Failed to get register {i} value");
-                    continue;
-                }
-                registers.Add(description, registerValue);
-            }
-            return registers;
-        }
-
-        private List<DEBUG_STACK_FRAME> getCallstack(Debugger dbg)
-        {
-            const int MaxFrames = 32;
-            DEBUG_STACK_FRAME[] frames = new DEBUG_STACK_FRAME[MaxFrames];
-            uint framesFilled;
-            int hr = dbg._control.GetStackTrace(0, 0, 0, frames, frames.Length, out framesFilled);
-            if (hr != 0)
-            {
-                MessageBox.Show("Failed to grab the callstack.");
-                return null;
-            }
-            List<DEBUG_STACK_FRAME> callStack = new List<DEBUG_STACK_FRAME>();
-            for (uint i = 0; i < framesFilled; i++)
-            {
-                callStack.Add(frames[i]);
-            }
-            return callStack;
-        }
-
-        private List<IDebugBreakpoint> getBreakpoints(Debugger dbg)
-        {
-            uint numBreakpoints;
-            int hr = dbg._control.GetNumberBreakpoints(out numBreakpoints);
-            if (hr != 0)
-            {
-                MessageBox.Show("Failed to get the number of breakpoints.");
-                return null;
-            }
-            List<IDebugBreakpoint> breakpoints = new List<IDebugBreakpoint>();
-            for (uint i = 0; i < numBreakpoints; i++)
-            {
-                IDebugBreakpoint bp;
-                hr = dbg._control.GetBreakpointByIndex(i, out bp);
-                if (hr != 0)
-                {
-                    MessageBox.Show($"Failed to get the breakpoint {i}");
-                    continue;
-                }
-                breakpoints.Add(bp);
-            }
-            return breakpoints;
-        }
-
-        private void getThreads(Debugger dbg) //Unfinished
-        {
-            uint numThreads;
-            int hr = dbg._sysObjects.GetNumberThreads(out numThreads);
-            if (hr != 0)
-            {
-                MessageBox.Show("Failed to get the number of threads");
-                return;
-            }
-            for (uint i = 0; i < numThreads; i++)
-            {
-                uint threadId;
-                //hr = dbg._sysObjects.GetThreadIdsByIndex();
-                if (hr != 0)
-                {
-                    MessageBox.Show($"Failed to grab thread {i}.");
-                    continue;
-                }
-
             }
         }
 
@@ -625,6 +538,7 @@ namespace WinDbgKiller
             {
                 labelState.Text = e.Flags.ToString();
             }
+            RefreshStats();
         }
 
         private void handleSessionChange(object sender, SessionStatusEventArgs e)
@@ -640,6 +554,7 @@ namespace WinDbgKiller
             {
                 labelStatus.Text = e.Status.ToString();
             }
+            RefreshStats();
         }
 
         private void handleBreakpoint(object sender, BreakpointEventArgs e)
@@ -664,6 +579,7 @@ namespace WinDbgKiller
             {
                 txtLog.AppendText($"Breakpoint Hit{formattedExpression}!" + Environment.NewLine);
             }
+            RefreshStats();
         }
 
         private async void handleExitThread(object sender, ExitThreadEventArgs e)
@@ -697,6 +613,7 @@ namespace WinDbgKiller
                     dataAccesses.Remove(breakpoint);
                 }
             }
+            RefreshStats();
         }
 
         #endregion

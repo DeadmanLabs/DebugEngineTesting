@@ -91,6 +91,79 @@ namespace WinDbgKiller
         [DllImport("dbgeng.dll")]
         internal static extern int DebugCreate(ref Guid InterfaceId, [MarshalAs(UnmanagedType.IUnknown)] out object Interface);
 
+        static List<DbgEngRegister> registersAsList = new List<DbgEngRegister>
+        {
+            DbgEngRegister.EDI,
+            DbgEngRegister.ESI,
+            DbgEngRegister.EAX,
+            DbgEngRegister.EBX,
+            DbgEngRegister.ECX,
+            DbgEngRegister.EDX,
+            DbgEngRegister.EBP,
+            DbgEngRegister.EIP,
+            DbgEngRegister.EFL,
+            DbgEngRegister.ESP,
+            DbgEngRegister.AX,
+            DbgEngRegister.BX,
+            DbgEngRegister.CX,
+            DbgEngRegister.DX,
+            DbgEngRegister.DI,
+            DbgEngRegister.SI,
+            DbgEngRegister.BP,
+            DbgEngRegister.IP,
+            DbgEngRegister.DS,
+            DbgEngRegister.ES,
+            DbgEngRegister.FS,
+            DbgEngRegister.GS,
+            DbgEngRegister.SS,
+            DbgEngRegister.FL,
+            DbgEngRegister.SP,
+            DbgEngRegister.IOPL,
+            DbgEngRegister.OF,
+            DbgEngRegister.DF,
+            DbgEngRegister.IF,
+            DbgEngRegister.TF,
+            DbgEngRegister.SF,
+            DbgEngRegister.ZF,
+            DbgEngRegister.AF,
+            DbgEngRegister.PF,
+            DbgEngRegister.CF,
+            DbgEngRegister.VIP,
+            DbgEngRegister.VIF,
+            DbgEngRegister.K0,
+            DbgEngRegister.K1,
+            DbgEngRegister.K2,
+            DbgEngRegister.K3,
+            DbgEngRegister.K4,
+            DbgEngRegister.K5,
+            DbgEngRegister.K6,
+            DbgEngRegister.K7,
+            DbgEngRegister.DR0,
+            DbgEngRegister.DR1,
+            DbgEngRegister.DR2,
+            DbgEngRegister.DR3,
+            DbgEngRegister.DR6,
+            DbgEngRegister.DR7,
+            DbgEngRegister.CS,
+            DbgEngRegister.AL,
+            DbgEngRegister.BL,
+            DbgEngRegister.CL,
+            DbgEngRegister.DL,
+            DbgEngRegister.AH,
+            DbgEngRegister.BH,
+            DbgEngRegister.CH,
+            DbgEngRegister.DH,
+            DbgEngRegister.FPCW,
+            DbgEngRegister.FPSW,
+            DbgEngRegister.FPTW,
+            DbgEngRegister.FOPCODE,
+            DbgEngRegister.FPIP,
+            DbgEngRegister.FPIPSEL,
+            DbgEngRegister.FPDP,
+            DbgEngRegister.FPDPSEL,
+            DbgEngRegister.MXCSR
+        };
+
         public IDebugClient5 _client;
         public IDebugControl4 _control;
         public IDebugDataSpaces _debugDataSpace;
@@ -988,6 +1061,87 @@ namespace WinDbgKiller
             return functions;
         }
 
+        public async Task<string> GetFunctionFromFrame(DEBUG_STACK_FRAME frame)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            EnqueueAction(() =>
+            {
+                /*
+                DEBUG_MODULE_AND_ID[] symbolIds = new DEBUG_MODULE_AND_ID[1];
+                ulong[] displacements = new ulong[1];
+                uint entries;
+                int hr = _symbols.GetSymbolEntriesByOffset(frame.InstructionOffset, 0, symbolIds, displacements, 1, out entries);
+                if (hr != 0 || entries <= 0)
+                {
+                    MessageBox.Show("Error grabbing symbol entries of instruction offset.");
+                    tcs.SetResult("");
+                    return;
+                }
+                DEBUG_SYMBOL_ENTRY symbolEntry;
+                hr = _symbols.GetSymbolEntryInformation(symbolIds[0], out symbolEntry);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Error grabbing symbol entry information!");
+                    tcs.SetResult("");
+                    return;
+                }
+                */
+                StringBuilder name = new StringBuilder(512);
+                uint nameSize;
+                ulong displacement;
+                int hr = _symbols.GetNameByOffset(frame.InstructionOffset, name, name.Capacity, out nameSize, out displacement);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to grab name from stack frame!");
+                    tcs.SetResult("");
+                    return;
+                }
+                tcs.SetResult(name.ToString());
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<Dictionary<DbgEngRegister, ulong>> listRegisters()
+        {
+            var tcs = new TaskCompletionSource<Dictionary<DbgEngRegister, ulong>>();
+            EnqueueAction(async () =>
+            {
+                Dictionary<DbgEngRegister, ulong> results = new Dictionary<DbgEngRegister, ulong>();
+                foreach (DbgEngRegister register in registersAsList)
+                {
+                    DEBUG_VALUE value = await GetRegisterValue(register);
+                    results.Add(register, value.I64);
+                }
+                tcs.SetResult(results);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<List<DEBUG_STACK_FRAME>> listStack()
+        {
+            var tcs = new TaskCompletionSource<List<DEBUG_STACK_FRAME>>();
+            EnqueueAction(async () =>
+            {
+                List<DEBUG_STACK_FRAME> stack = new List<DEBUG_STACK_FRAME>();
+                int frameSize = 10;
+                DEBUG_STACK_FRAME[] frames = new DEBUG_STACK_FRAME[frameSize];
+                uint framesFilled;
+                int hr = _control.GetStackTrace(0, 0, 0, frames, frameSize, out framesFilled);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to grab the current stack frame!");
+                    tcs.SetResult(null);
+                    return;
+                }
+                for (int i = 0; i < framesFilled; i++)
+                {
+                    stack.Add(frames[i]);
+                }
+                tcs.SetResult(stack);
+            });
+            return await tcs.Task;
+        }
+
 
         public struct ThreadDetails
         {
@@ -1043,104 +1197,6 @@ namespace WinDbgKiller
                 threads.Add(threadInfo);
             }
             return threads.ToArray();
-        }
-
-        public Dictionary<string, byte[]> GetRegisters()
-        {
-            Dictionary<string, byte[]> registers = new Dictionary<string, byte[]>();
-            uint numRegisters;
-            int hr = _registers.GetNumberRegisters(out numRegisters);
-            if (hr != 0)
-            {
-                //Failed
-                return null;
-            }
-            StringBuilder nameBuf = new StringBuilder(256);
-            for (uint i = 0; i < numRegisters; i++)
-            {
-                uint nameSize;
-                DEBUG_REGISTER_DESCRIPTION description;
-                hr = _registers.GetDescription(i, nameBuf, nameBuf.Capacity, out nameSize, out description);
-                if (hr != 0)
-                {
-                    //Failed
-                    continue;
-                }
-                string registerName = nameBuf.ToString();
-                DEBUG_VALUE registerValue;
-                hr = _registers.GetValue(i, out registerValue);
-                if (hr != 0)
-                {
-                    //Failed
-                    continue;
-                }
-                byte[] valueBytes = ValueToByteReader(registerValue, description);
-                registers[registerName] = valueBytes;
-            }
-            return registers;
-        }
-
-        public object[] GetCallstack()
-        {
-            List<object> callstack = new List<object>();
-
-            return callstack.ToArray();
-        }
-
-        public object[] GetBreakpoints()
-        {
-            List<object> breakpoints = new List<object>();
-
-            return breakpoints.ToArray();
-        }
-
-        private byte[] ValueToByteReader(DEBUG_VALUE value, DEBUG_REGISTER_DESCRIPTION description)
-        {
-            byte[] bytes = null;
-
-            switch (value.Type)
-            {
-                case DEBUG_VALUE_TYPE.INT32:
-                    bytes = BitConverter.GetBytes(value.I32);
-                    break;
-                case DEBUG_VALUE_TYPE.INT64:
-                    bytes = BitConverter.GetBytes(value.I64);
-                    break;
-                case DEBUG_VALUE_TYPE.INT8:
-                    bytes = new byte[] { value.I8 };
-                    break;
-                case DEBUG_VALUE_TYPE.INT16:
-                    bytes = BitConverter.GetBytes(value.I16);
-                    break;
-                case DEBUG_VALUE_TYPE.INVALID:
-
-                    break;
-                case DEBUG_VALUE_TYPE.TYPES:
-
-                    break;
-                case DEBUG_VALUE_TYPE.VECTOR64:
-
-                    break;
-                case DEBUG_VALUE_TYPE.VECTOR128:
-
-                    break;
-                case DEBUG_VALUE_TYPE.FLOAT32:
-                    bytes = BitConverter.GetBytes(value.F32);
-                    break;
-                case DEBUG_VALUE_TYPE.FLOAT64:
-                    bytes = BitConverter.GetBytes(value.F64);
-                    break;
-                case DEBUG_VALUE_TYPE.FLOAT128:
-
-                    break;
-                case DEBUG_VALUE_TYPE.FLOAT80:
-
-                    break;
-                case DEBUG_VALUE_TYPE.FLOAT82:
-
-                    break;
-            }
-            return bytes;
         }
 
         #endregion

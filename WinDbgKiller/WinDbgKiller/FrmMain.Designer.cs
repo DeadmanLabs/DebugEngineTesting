@@ -257,7 +257,7 @@
             this.listBreakpoints.HideSelection = false;
             this.listBreakpoints.Location = new System.Drawing.Point(632, 279);
             this.listBreakpoints.Name = "listBreakpoints";
-            this.listBreakpoints.Size = new System.Drawing.Size(376, 209);
+            this.listBreakpoints.Size = new System.Drawing.Size(595, 209);
             this.listBreakpoints.TabIndex = 10;
             this.listBreakpoints.UseCompatibleStateImageBehavior = false;
             this.listBreakpoints.View = System.Windows.Forms.View.Details;
@@ -265,22 +265,22 @@
             // columnOffset
             // 
             this.columnOffset.Text = "Offset";
-            this.columnOffset.Width = 79;
+            this.columnOffset.Width = 147;
             // 
             // columnInstruction
             // 
             this.columnInstruction.Text = "Instruction";
-            this.columnInstruction.Width = 96;
+            this.columnInstruction.Width = 143;
             // 
             // columnAction
             // 
             this.columnAction.Text = "Action";
-            this.columnAction.Width = 84;
+            this.columnAction.Width = 146;
             // 
             // columnComment
             // 
             this.columnComment.Text = "Comment";
-            this.columnComment.Width = 112;
+            this.columnComment.Width = 153;
             // 
             // label2
             // 
