@@ -11,6 +11,8 @@ using System.Windows.Forms;
 using System.IO;
 using System.Data.Odbc;
 using Microsoft.Diagnostics.Runtime.Interop;
+using System.Net.Sockets;
+using System.Net;
 
 namespace WinDbgKiller
 {
@@ -20,6 +22,7 @@ namespace WinDbgKiller
         private Process _debuggee;
         private FormOutputHandler _outputHandler;
         private Task _processor;
+        private Dictionary<IDebugBreakpoint, List<ulong>> dataAccesses;
         private bool _dispose = false;
         public FrmMain()
         {
@@ -62,12 +65,14 @@ namespace WinDbgKiller
 
         private async void btnLaunch_Click(object sender, EventArgs e)
         {
+            dataAccesses = new Dictionary<IDebugBreakpoint, List<ulong>>();
             _engine = new Debugger();
             _engine.SetOutputText(true);
             _engine.useCallbacks = true;
             _engine.OnOutput += handleOutput;
             _engine.OnStateChange += handleStateChange;
             _engine.OnBreakpoint += handleBreakpoint;
+            _engine.OnSessionChange += handleSessionChange;
             if (radioRunningProcess.Checked)
             {
                 if (await _engine.AttachTo(int.Parse(comboSource.Text.Split(' ')[0])) == false)
@@ -119,65 +124,152 @@ namespace WinDbgKiller
                 txtLog.AppendText($"Successfully Attached To Process!{Environment.NewLine}");
                 MessageBox.Show("Successfully attached to the process!", "Success!");
                 txtLog.ScrollBars = ScrollBars.Vertical;
+                await _engine.Execute("g");
                 if (await _engine.IsModuleLoaded("ws2_32"))
                 {
                     txtLog.AppendText($"Networking Detected!" + Environment.NewLine + "Hooking Recv...");
                     IDebugBreakpoint bpRecv = await _engine.SetBreakAtFunction("ws2_32", "recv");
-                    _engine.addCallback(bpRecv, (bp) =>
+                    _engine.addCallback(bpRecv, async (bp) =>
                     {
-                        MessageBox.Show("Recv Fired!");
+                        if (txtLog.InvokeRequired)
+                        {
+                            txtLog.Invoke((MethodInvoker)delegate
+                            {
+                                txtLog.AppendText($"Recv Fired!{Environment.NewLine}");
+                            });
+                        }
+                        else
+                        {
+                            txtLog.AppendText($"Recv Fired!{Environment.NewLine}");
+                        }
+                        ulong[] args = new ulong[4];
+                        for (int i = 0; i < 4; i++)
+                        {
+                            args[i] = (await _engine.GetRegisterValue(DbgEngRegister.ESP)).I64 + (0x4 * (ulong)i);
+                        }
+                        ulong socket = args[0];
+                        ulong buffer = args[1];
+                        int len = (int)args[2];
+                        int flags = (int)args[3];
+                        IDebugBreakpoint memBreak = await _engine.SetBreakAtMemory(buffer);
+                        _engine.addCallback(memBreak, async (bpChild) =>
+                        {
+                            //Grab Opcode
+                            uint threadId = await _engine.GetBrokenThread(bpChild);
+                            ulong instruction = await _engine.GetCurrentInstructionAddress();
+                            if (!dataAccesses.ContainsKey(bpChild))
+                            {
+                                dataAccesses[bpChild] = new List<ulong>();
+                            }
+                            dataAccesses[bpChild].Add(instruction);
+                            int hresult = await _engine.Execute("g");
+                        });
+                        int hr = await _engine.Execute("g");
                     });
                     txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Send...");
                     IDebugBreakpoint bpSend = await _engine.SetBreakAtFunction("ws2_32", "send");
-                    _engine.addCallback(bpSend, (bp) =>
+                    _engine.addCallback(bpSend, async (bp) =>
                     {
-                        MessageBox.Show("Send Fired!");
+                        if (txtLog.InvokeRequired)
+                        {
+                            txtLog.Invoke((MethodInvoker)delegate
+                            {
+                                txtLog.AppendText($"Send Fired!{Environment.NewLine}");
+                            });
+                        }
+                        else
+                        {
+                            txtLog.AppendText($"Send Fired!{Environment.NewLine}");
+                        }
+                        ulong[] args = new ulong[4];
+                        for (int i = 0; i < 4; i++)
+                        {
+                            args[i] = (await _engine.GetRegisterValue(DbgEngRegister.ESP)).I64 + (0x4 * (ulong)i);
+                        }
+                        ulong socket = args[0];
+                        IntPtr buffer = new IntPtr((long)args[1]);
+                        int length = (int)args[2];
+                        int flags = (int)args[3];
+                        int hr = await _engine.Execute("g");
                     });
                     txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Listen...");
                     IDebugBreakpoint bpListen = await _engine.SetBreakAtFunction("ws2_32", "listen");
-                    _engine.addCallback(bpListen, (bp) =>
+                    _engine.addCallback(bpListen, async (bp) =>
                     {
-                        MessageBox.Show("Listen Fired!");
+                        if (txtLog.InvokeRequired)
+                        {
+                            txtLog.Invoke((MethodInvoker)delegate
+                            {
+                                txtLog.AppendText($"Listen Fired!{Environment.NewLine}");
+                            });
+                        }
+                        else
+                        {
+                            txtLog.AppendText($"Listen Fired!{Environment.NewLine}");
+                        }
+                        ulong[] args = new ulong[2];
+                        for (int i = 0; i < 2; i++)
+                        {
+                            args[i] = (await _engine.GetRegisterValue(DbgEngRegister.ESP)).I64 + (0x4 * (ulong)i);
+                        }
+                        ulong socket = args[0];
+                        int backlog = (int)args[1];
+                        int hr = await _engine.Execute("g");
                     });
                     txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Accept...");
                     IDebugBreakpoint bpAccept = await _engine.SetBreakAtFunction("ws2_32", "accept");
-                    _engine.addCallback(bpAccept, (bp) =>
+                    _engine.addCallback(bpAccept, async (bp) =>
                     {
-                        MessageBox.Show("Accept Fired!");
+                        if (txtLog.InvokeRequired)
+                        {
+                            txtLog.Invoke((MethodInvoker)delegate
+                            {
+                                txtLog.AppendText($"Accept Fired!{Environment.NewLine}");
+                            });
+                        }
+                        else
+                        {
+                            txtLog.AppendText($"Accept Fired!{Environment.NewLine}");
+                        }
+                        ulong[] args = new ulong[3];
+                        for (int i = 0; i < 3; i++)
+                        {
+                            args[i] = (await _engine.GetRegisterValue(DbgEngRegister.ESP)).I64 + (0x4 * (ulong)i);
+                        }
+                        ulong socket = args[0];
+                        SocketDetails socketInfo = new SocketDetails(args[1], _engine);
+                        int hr = await _engine.Execute("g");
                     });
                     txtLog.AppendText("Done!" + Environment.NewLine + "Hooking Bind...");
                     IDebugBreakpoint bpBind = await _engine.SetBreakAtFunction("ws2_32", "bind");
-                    _engine.addCallback(bpBind, (bp) =>
+                    _engine.addCallback(bpBind, async (bp) =>
                     {
-                        MessageBox.Show("Bind Fired!");
+                        if (txtLog.InvokeRequired)
+                        {
+                            txtLog.Invoke((MethodInvoker)delegate
+                            {
+                                txtLog.AppendText($"Bind Fired!{Environment.NewLine}");
+                            });
+                        }
+                        else
+                        {
+                            txtLog.AppendText($"Bind Fired!{Environment.NewLine}");
+                        }
+                        ulong[] args = new ulong[4];
+                        for (int i = 0; i < 4; i++)
+                        {
+                            args[i] = (await _engine.GetRegisterValue(DbgEngRegister.ESP)).I64 + (0x4 * (ulong)i);
+                        }
+                        ulong socket = args[0];
+                        SocketDetails socketInfo = new SocketDetails(args[1], _engine);
+                        int len = (int)(await _engine.GetRegisterValue(DbgEngRegister.ESP)).I64;
+                        int hr = await _engine.Execute("g");
                     });
                     txtLog.AppendText("Done!" + Environment.NewLine);
-                    List<string> fncs = await _engine.ListFuncsInDebuggee();
+                    //Handle Connect
                     await _engine.Execute("bl");
-                    //txtLog.AppendText($"Breakpoint Callbacks: {string.Join(", ", _engine.readCallbacks().Keys)}");
-                    /*
-                    List<String> modules = _engine.GetAllModuleNames();
-                    foreach (string module in modules)
-                    {
-                        MessageBox.Show($"{module}", $"{modules.IndexOf(module)} / {modules.Count}");
-                    }
-                    Dictionary<string, string[]> funcs = _engine.GetAllFunctionNames();
-                    foreach (string module in funcs.Keys)
-                    {
-                        foreach (string func in funcs[module])
-                        {
-                            MessageBox.Show($"{module} -> {func}", $"{(funcs[module]).ToList().IndexOf(func)} / {funcs[module].Count()}");
-                        }
-                    }
-                    */
-                    txtLog.AppendText($"Continuing Execution...{Environment.NewLine}");
+                    MessageBox.Show($"Continuing execution...");
                     await _engine.Execute("g");
-                    await _engine.WaitForEvent();
-                    MessageBox.Show("Buttholes!");
-                    await _engine.WaitForEvent();
-                    await _engine.Execute("g");
-                    MessageBox.Show("Buttholes 2!");
-                    await _engine.WaitForEvent();
                 }
                 else
                 {
@@ -270,6 +362,7 @@ namespace WinDbgKiller
                 _engine.OnOutput -= handleOutput;
                 _engine.OnStateChange -= handleStateChange;
                 _engine.OnBreakpoint -= handleBreakpoint;
+                _engine.Dispose();
             }
             if (_debuggee != null && !_debuggee.HasExited)
             {
@@ -521,16 +614,31 @@ namespace WinDbgKiller
 
         private void handleStateChange(object sender, DebuggeeStateEventArgs e)
         {
-            if (labelStatus.InvokeRequired)
+            if (labelState.InvokeRequired)
             {
-                labelStatus.Invoke((MethodInvoker)delegate
+                labelState.Invoke((MethodInvoker)delegate
                 {
-                    labelStatus.Text = e.Flags.ToString();
+                    labelState.Text = e.Flags.ToString();
                 });
             }
             else
             {
-                labelStatus.Text = e.Flags.ToString();
+                labelState.Text = e.Flags.ToString();
+            }
+        }
+
+        private void handleSessionChange(object sender, SessionStatusEventArgs e)
+        {
+            if (labelStatus.InvokeRequired)
+            {
+                labelStatus.Invoke((MethodInvoker)delegate
+                {
+                    labelStatus.Text = e.Status.ToString();
+                });
+            }
+            else
+            {
+                labelStatus.Text = e.Status.ToString();
             }
         }
 
@@ -555,6 +663,39 @@ namespace WinDbgKiller
             else
             {
                 txtLog.AppendText($"Breakpoint Hit{formattedExpression}!" + Environment.NewLine);
+            }
+        }
+
+        private async void handleExitThread(object sender, ExitThreadEventArgs e)
+        {
+            uint currentThreadId;
+            int hr = _engine._sysObjects.GetCurrentThreadId(out currentThreadId);
+            if (hr != 0)
+            {
+                MessageBox.Show("Failed to grab current thread id.");
+                return;
+            }
+            uint[] threads = await Task.WhenAll(dataAccesses.Keys.Select(async (bp) => await _engine.GetBrokenThread(bp)));
+            threads = threads.Distinct().ToArray();
+            if (!threads.Contains(currentThreadId))
+            {
+                MessageBox.Show("Exiting thread is not found in the data accessors!");
+                return;
+            }
+            foreach (IDebugBreakpoint breakpoint in dataAccesses.Keys)
+            {
+                if (await _engine.GetBrokenThread(breakpoint) == currentThreadId)
+                {
+                    //breakpoint
+                    hr = _engine._control.RemoveBreakpoint(breakpoint);
+                    if (hr != 0)
+                    {
+                        MessageBox.Show("Failed to remove breakpoint!");
+                        continue;
+                    }
+                    //Handle Instruction List
+                    dataAccesses.Remove(breakpoint);
+                }
             }
         }
 
@@ -670,6 +811,71 @@ namespace WinDbgKiller
         {
             MessageBox.Show("ChangeSymbolState()");
             return 0;
+        }
+    }
+
+    public class SocketDetails
+    {
+        AddressFamily family;
+        int port;
+        IPAddress ip;
+        Debugger dbg;
+
+        public SocketDetails(ulong stackAddress, Debugger dbg)
+        {
+            this.dbg = dbg;
+            ushort familyValue = readUShort(stackAddress);
+            ushort portValue = (ushort)(readByte(stackAddress + 2) * 256 + readByte(stackAddress + 3));
+            string ipValue = string.Format("{0}.{1}.{2}.{3}",
+                readByte(stackAddress + 0x4),
+                readByte(stackAddress + 0x5),
+                readByte(stackAddress + 0x6),
+                readByte(stackAddress + 0x7)
+            );
+            this.family = (AddressFamily)familyValue;
+            this.port = (int)portValue;
+            this.ip = IPAddress.Parse(ipValue);
+        }
+
+        private byte readByte(ulong address)
+        {
+            byte[] buffer = new byte[1];
+            int bytesRead = ReadMemory(address, buffer);
+            if (bytesRead == 1)
+            {
+                return buffer[0];
+            }
+            return 0;
+        }
+
+        private ushort readUShort(ulong address)
+        {
+            byte[] buffer = new byte[2];
+            int bytesRead = ReadMemory(address, buffer);
+            if (bytesRead == 2)
+            {
+                return BitConverter.ToUInt16(buffer, 0);
+            }
+            return 0;
+        }
+
+        private int ReadMemory(ulong address, byte[] buffer)
+        {
+            if (dbg._debugDataSpace != null)
+            {
+                uint bytesRead = 0;
+                int hr = dbg._debugDataSpace.ReadVirtual(address, buffer, (uint)buffer.Length, out bytesRead);
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Error Reading Memory @ 0x{address:X}");
+                    return -1;
+                }
+                else
+                {
+                    return (int)bytesRead;
+                }
+            }
+            return -1;
         }
     }
 }

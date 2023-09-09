@@ -9,9 +9,83 @@ using System.Threading;
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace WinDbgKiller
 {
+    public enum DbgEngRegister : uint
+    {
+        EDI = 4,
+        ESI = 5,
+        EAX = 9,
+        EBX = 6,
+        ECX = 8,
+        EDX = 7,
+        EBP = 10,
+        EIP = 11,
+        EFL = 13,
+        ESP = 14,
+        AX = 27,
+        BX = 24,
+        CX = 26,
+        DX = 25,
+        DI = 22,
+        SI = 23,
+        BP = 28,
+        IP = 29,
+        DS = 3,
+        ES = 2,
+        FS = 1,
+        GS = 0,
+        SS = 15,
+        FL = 30,
+        SP = 31,
+        IOPL = 73,
+        OF = 74,
+        DF = 75,
+        IF = 76,
+        TF = 77,
+        SF = 78,
+        ZF = 79,
+        AF = 80,
+        PF = 81,
+        CF = 82,
+        VIP = 83,
+        VIF = 84,
+        K0 = 197,
+        K1 = 198,
+        K2 = 199,
+        K3 = 200,
+        K4 = 201,
+        K5 = 202,
+        K6 = 203,
+        K7 = 204,
+        DR0 = 16,
+        DR1 = 17,
+        DR2 = 18,
+        DR3 = 19,
+        DR6 = 20,
+        DR7 = 21,
+        CS = 12,
+        AL = 35,
+        BL = 32,
+        CL = 34,
+        DL = 33,
+        AH = 39,
+        BH = 36,
+        CH = 38,
+        DH = 37,
+        FPCW = 40,
+        FPSW = 41,
+        FPTW = 42,
+        FOPCODE = 43,
+        FPIP = 44,
+        FPIPSEL = 45,
+        FPDP = 46,
+        FPDPSEL = 47,
+        MXCSR = 64,
+    }
+
     public class Debugger : IDebugOutputCallbacks, IDebugEventCallbacksWide, IDisposable
     {
         [DllImport("dbgeng.dll")]
@@ -24,6 +98,7 @@ namespace WinDbgKiller
         public IDebugAdvanced3 _advanced;
         public IDebugSymbols5 _symbols;
         public IDebugSystemObjects3 _sysObjects;
+        public SymbolDebugger _symbolDbg;
 
         bool _outputText;
         public void SetOutputText(bool output)
@@ -59,6 +134,7 @@ namespace WinDbgKiller
         public Dictionary<IDebugBreakpoint, Action<IDebugBreakpoint>> callbacks { get; private set; }
         private BlockingCollection<Action> _actionQueue = new BlockingCollection<Action>();
         private Thread _executorThread;
+        private bool disposing = false;
 
         public Debugger()
         {
@@ -110,7 +186,6 @@ namespace WinDbgKiller
         public async Task<int> ReadMemory(ulong address, uint size, byte[] buf)
         {
             var tcs = new TaskCompletionSource<int>();
-
             EnqueueAction(() =>
             {
                 _debugDataSpace.ReadVirtual(address, buf, size, out uint readBytes);
@@ -132,6 +207,10 @@ namespace WinDbgKiller
             {
                 int hr = _client.AttachKernel(DEBUG_ATTACH.KERNEL_CONNECTION, pipe);
                 tcs.SetResult(hr >= 0);
+                if (hr >= 0)
+                {
+                    //... Figure out kernel symbols later
+                }
             });
             return await tcs.Task;
         }
@@ -150,6 +229,10 @@ namespace WinDbgKiller
             {
                 int hr = _client.AttachKernel(attachParams, connectionOptions);
                 tcs.SetResult(hr >= 0);
+                if (hr >= 0)
+                {
+                    //... Figure out kernel symbols later
+                }
             });
             return await tcs.Task;
         }
@@ -162,6 +245,25 @@ namespace WinDbgKiller
             {
                 int hr = _client.AttachProcess(0, (uint)pid, DEBUG_ATTACH.DEFAULT);
                 tcs.SetResult(hr >= 0);
+                if (hr >= 0)
+                {
+                    //... Figure out kernel symbols later
+                }
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<bool> AttachTo(Process proc)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            EnqueueAction(() =>
+            {
+                int hr = _client.AttachProcess(0, (uint)proc.Id, DEBUG_ATTACH.DEFAULT);
+                tcs.SetResult(hr >= 0);
+                if (hr >= 0)
+                {
+                    _symbolDbg = new SymbolDebugger(proc);
+                }
             });
             return await tcs.Task;
         }
@@ -547,20 +649,166 @@ namespace WinDbgKiller
             EnqueueAction(() =>
             {
                 IDebugBreakpoint breakpoint;
-
                 int hr = _control.AddBreakpoint(DEBUG_BREAKPOINT_TYPE.CODE, uint.MaxValue, out breakpoint);
                 if (hr != 0)
                 {
                     MessageBox.Show("Failed to install breakpoint!");
                     tcs.SetResult(breakpoint);
                 }
-                hr = breakpoint.SetOffsetExpression($"{moduleName}!{functionName}"); //this is busted
+                hr = breakpoint.SetOffsetExpression($"{moduleName}!{functionName}");
                 if (hr != 0)
                 {
                     MessageBox.Show("Failed to set breakpoint offset!");
                     tcs.SetResult(breakpoint); //I know this is a duplicate, but I want it here incase we do some processing later
                 }
+                hr = breakpoint.SetFlags(DEBUG_BREAKPOINT_FLAG.ENABLED);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to enable breakpoint!");
+                    tcs.SetResult(breakpoint);
+                }
                 tcs.SetResult(breakpoint);
+            });
+            return await tcs.Task;
+        }
+        public async Task<IDebugBreakpoint> SetBreakAtMemory(ulong address)
+        {
+            var tcs = new TaskCompletionSource<IDebugBreakpoint>();
+            EnqueueAction(() =>
+            {
+                IDebugBreakpoint breakpoint;
+                int hr = _control.AddBreakpoint(DEBUG_BREAKPOINT_TYPE.DATA, uint.MaxValue, out breakpoint);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to install breakpoint!");
+                    tcs.SetResult(breakpoint);
+                }
+                hr = breakpoint.SetOffset(address);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to set breakpoint offset!");
+                    tcs.SetResult(breakpoint);
+                }
+                hr = breakpoint.SetFlags(DEBUG_BREAKPOINT_FLAG.ENABLED);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to enable breakpoint!");
+                    tcs.SetResult(breakpoint);
+                }
+                tcs.SetResult(breakpoint);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<int> GetRegisterIndex(string register)
+        {
+            var tcs = new TaskCompletionSource<int>();
+            EnqueueAction(() =>
+            {
+                uint indexReg;
+                int hr = _registers.GetIndexByName(register, out indexReg);
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Failed with HRESULT {hr}", $"Failed to grab {register}");
+                    tcs.SetResult(-1);
+                    return;
+                }
+                tcs.SetResult((int)indexReg);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<uint> GetBrokenThread(IDebugBreakpoint bp)
+        {
+            var tcs = new TaskCompletionSource<uint>();
+            EnqueueAction(() =>
+            {
+                uint threadId;
+                int hr = bp.GetMatchThreadId(out threadId);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to get the broken thread id!");
+                    tcs.SetResult(0);
+                }
+                tcs.SetResult(threadId);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<string> GetCurrentOpcode()
+        {
+            var tcs = new TaskCompletionSource<string>();
+            EnqueueAction(() =>
+            {
+                ulong address;
+                int hr = _registers.GetInstructionOffset(out address);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to read instruction location!");
+                    tcs.SetResult("Error");
+                }
+                uint instructionSize;
+                ulong endingOffset;
+                StringBuilder instruction = new StringBuilder(512);
+                hr = _control.Disassemble(address, 0, instruction, instruction.Capacity, out instructionSize, out endingOffset);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to disassemble the instruction!");
+                    tcs.SetResult("Error");
+                }
+                tcs.SetResult(instruction.ToString());
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<ulong> GetCurrentInstructionAddress()
+        {
+            var tcs = new TaskCompletionSource<ulong>();
+            EnqueueAction(() =>
+            {
+                ulong address;
+                int hr = _registers.GetInstructionOffset(out address);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to read instruction location!");
+                    tcs.SetResult(0);
+                }
+                tcs.SetResult(address);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<string> GetRegisterValueAsString(DbgEngRegister register = DbgEngRegister.EAX)
+        {
+            DEBUG_VALUE regValue = await GetRegisterValue(register);
+            return regValue.I64.ToString("X");
+        }
+
+        public async Task<byte[]> GetMemoryFromRegisterPtr(int length, DbgEngRegister register = DbgEngRegister.EAX)
+        {
+            var tcs = new TaskCompletionSource<byte[]>();
+            DEBUG_VALUE pointer = await GetRegisterValue(register);
+            EnqueueAction(() =>
+            {
+                uint bytesRead;
+                byte[] buffer = new byte[length];
+                int hr = _debugDataSpace.ReadVirtual(pointer.I64, buffer, (uint)length, out bytesRead);
+                if (hr != 0)
+                {
+                    MessageBox.Show($"Failed to grab memory at address!");
+                    tcs.SetResult(new byte[0]);
+                }
+            });
+            return await tcs.Task;
+        }
+        public async Task<DEBUG_VALUE> GetRegisterValue(DbgEngRegister register = DbgEngRegister.EAX)
+        {
+            var tcs = new TaskCompletionSource<DEBUG_VALUE>();
+            EnqueueAction(() =>
+            {
+                DEBUG_VALUE registerValue;
+                _registers.GetValue((uint)register, out registerValue);
+                tcs.SetResult(registerValue);
             });
             return await tcs.Task;
         }
@@ -645,6 +893,7 @@ namespace WinDbgKiller
                         MessageBox.Show($"Failed to grab symbol group!");
                         continue;
                     }
+                    
                     uint symbolCount;
                     hr = _symbolGroup.GetNumberSymbols(out symbolCount);
                     if (hr != 0)
@@ -895,6 +1144,40 @@ namespace WinDbgKiller
         }
 
         #endregion
+    }
+
+    public class SymbolDebugger : IDisposable
+    {
+        [DllImport("DbgHelp.dll", SetLastError = true)]
+        private static extern bool SymInitialize(IntPtr hProcess, string UserSearchPath, bool fInvadeProcess);
+        [DllImport("DbgHelp.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        private static extern bool SymEnumImports(IntPtr hProcess, IntPtr hMod, string Name, SymEnumImportsCallback EnumImportsCallback, IntPtr UserContext);
+        [DllImport("DbgHelp.dll", SetLastError = true)]
+        private static extern bool SymCleanup(IntPtr hProcess);
+        private delegate bool SymEnumImportsCallback(string SymbolName, IntPtr SymbolAddress, IntPtr UserContext);
+
+        public Process child { get; private set; }
+
+
+        public SymbolDebugger(Process proc)
+        {
+            child = proc;
+            if (!SymInitialize(proc.Handle, null, false))
+            {
+                int error = Marshal.GetLastWin32Error();
+                throw new Exception($"SymInitialize failed with error {error}");
+            }
+        }
+        private static bool EnumImportsCallback(string SymbolName, IntPtr SymbolAddress, IntPtr UserContext)
+        {
+            Console.WriteLine($"Imported Symbol: {SymbolName}, Address: 0x{SymbolAddress.ToInt64():X}");
+            return true;
+        }
+
+        public void Dispose()
+        {
+
+        }
     }
 
     #region Args

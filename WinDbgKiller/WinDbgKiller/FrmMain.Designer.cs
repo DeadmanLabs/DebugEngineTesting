@@ -55,9 +55,11 @@
             this.columnAction = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnComment = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.label2 = new System.Windows.Forms.Label();
-            this.labelStatus = new System.Windows.Forms.Label();
+            this.labelState = new System.Windows.Forms.Label();
             this.btnContinue = new System.Windows.Forms.Button();
             this.btnCheck = new System.Windows.Forms.Button();
+            this.label3 = new System.Windows.Forms.Label();
+            this.labelStatus = new System.Windows.Forms.Label();
             this.groupBox1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -285,18 +287,18 @@
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(367, 13);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(47, 16);
+            this.label2.Size = new System.Drawing.Size(41, 16);
             this.label2.TabIndex = 11;
-            this.label2.Text = "Status:";
+            this.label2.Text = "State:";
             // 
-            // labelStatus
+            // labelState
             // 
-            this.labelStatus.AutoSize = true;
-            this.labelStatus.Location = new System.Drawing.Point(420, 13);
-            this.labelStatus.Name = "labelStatus";
-            this.labelStatus.Size = new System.Drawing.Size(38, 16);
-            this.labelStatus.TabIndex = 12;
-            this.labelStatus.Text = "Idle...";
+            this.labelState.AutoSize = true;
+            this.labelState.Location = new System.Drawing.Point(420, 13);
+            this.labelState.Name = "labelState";
+            this.labelState.Size = new System.Drawing.Size(38, 16);
+            this.labelState.TabIndex = 12;
+            this.labelState.Text = "Idle...";
             // 
             // btnContinue
             // 
@@ -318,14 +320,34 @@
             this.btnCheck.UseVisualStyleBackColor = true;
             this.btnCheck.Click += new System.EventHandler(this.btnCheck_Click);
             // 
+            // label3
+            // 
+            this.label3.AutoSize = true;
+            this.label3.Location = new System.Drawing.Point(512, 13);
+            this.label3.Name = "label3";
+            this.label3.Size = new System.Drawing.Size(47, 16);
+            this.label3.TabIndex = 15;
+            this.label3.Text = "Status:";
+            // 
+            // labelStatus
+            // 
+            this.labelStatus.AutoSize = true;
+            this.labelStatus.Location = new System.Drawing.Point(565, 13);
+            this.labelStatus.Name = "labelStatus";
+            this.labelStatus.Size = new System.Drawing.Size(38, 16);
+            this.labelStatus.TabIndex = 16;
+            this.labelStatus.Text = "Idle...";
+            // 
             // FrmMain
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1239, 737);
+            this.Controls.Add(this.labelStatus);
+            this.Controls.Add(this.label3);
             this.Controls.Add(this.btnCheck);
             this.Controls.Add(this.btnContinue);
-            this.Controls.Add(this.labelStatus);
+            this.Controls.Add(this.labelState);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.listBreakpoints);
             this.Controls.Add(this.listThreads);
@@ -378,9 +400,11 @@
         private System.Windows.Forms.ColumnHeader columnAction;
         private System.Windows.Forms.ColumnHeader columnComment;
         private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.Label labelStatus;
+        private System.Windows.Forms.Label labelState;
         private System.Windows.Forms.Button btnContinue;
         private System.Windows.Forms.Button btnCheck;
+        private System.Windows.Forms.Label label3;
+        private System.Windows.Forms.Label labelStatus;
     }
 }
 
