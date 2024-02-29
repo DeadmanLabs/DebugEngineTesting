@@ -5,11 +5,11 @@ using System.Windows.Forms;
 using System.Collections.Generic;
 using Microsoft.Diagnostics.Runtime.Interop;
 using System.Text;
-using System.Threading;
 using System.Linq;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace WinDbgKiller
 {
@@ -1199,6 +1199,23 @@ namespace WinDbgKiller
             return threads.ToArray();
         }
 
+        public List<BreakpointInfo> GetCurrentBreakpointsInfo()
+        {
+            List<BreakpointInfo> breakpoints = new List<BreakpointInfo>();
+            List<uint> ids = new List<uint>();
+            uint count = 0;
+            int hr = _control.GetNumberBreakpoints(out count);
+            for (uint i = 0; i < count; i++)
+            {
+                IDebugBreakpoint breakpoint;
+                if (_control.GetBreakpointById(ids[(int)i], out breakpoint) == 0)
+                {
+                    //Get Brekapoint
+                }
+            }
+            return breakpoints;
+        }
+
         #endregion
     }
 
@@ -1234,6 +1251,14 @@ namespace WinDbgKiller
         {
 
         }
+    }
+
+    public struct BreakpointInfo
+    {
+        public uint Id { get; set; }
+        public ulong Offset { get; set; }
+        public bool Enabled { get; set; }
+        public string Expression { get; set; }
     }
 
     #region Args

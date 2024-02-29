@@ -145,6 +145,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Debugger.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="FrmAlt.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="FrmAlt.Designer.cs">
+      <DependentUpon>FrmAlt.cs</DependentUpon>
+    </Compile>
     <Compile Include="FrmMain.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -155,6 +162,9 @@
     <Compile Include="HRESULT.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <EmbeddedResource Include="FrmAlt.resx">
+      <DependentUpon>FrmAlt.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="FrmMain.resx">
       <DependentUpon>FrmMain.cs</DependentUpon>
     </EmbeddedResource>

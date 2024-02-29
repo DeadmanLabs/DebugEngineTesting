@@ -66,27 +66,30 @@
             // label1
             // 
             this.label1.AutoSize = true;
-            this.label1.Location = new System.Drawing.Point(13, 13);
+            this.label1.Location = new System.Drawing.Point(10, 11);
+            this.label1.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(56, 16);
+            this.label1.Size = new System.Drawing.Size(47, 13);
             this.label1.TabIndex = 0;
             this.label1.Text = "Source: ";
             // 
             // comboSource
             // 
             this.comboSource.FormattingEnabled = true;
-            this.comboSource.Location = new System.Drawing.Point(75, 10);
+            this.comboSource.Location = new System.Drawing.Point(56, 8);
+            this.comboSource.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.comboSource.Name = "comboSource";
-            this.comboSource.Size = new System.Drawing.Size(242, 24);
+            this.comboSource.Size = new System.Drawing.Size(182, 21);
             this.comboSource.Sorted = true;
             this.comboSource.TabIndex = 1;
             this.comboSource.DropDown += new System.EventHandler(this.comboSource_DropDown);
             // 
             // btnSelectSource
             // 
-            this.btnSelectSource.Location = new System.Drawing.Point(323, 10);
+            this.btnSelectSource.Location = new System.Drawing.Point(242, 8);
+            this.btnSelectSource.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.btnSelectSource.Name = "btnSelectSource";
-            this.btnSelectSource.Size = new System.Drawing.Size(38, 23);
+            this.btnSelectSource.Size = new System.Drawing.Size(28, 19);
             this.btnSelectSource.TabIndex = 2;
             this.btnSelectSource.Text = "...";
             this.btnSelectSource.UseVisualStyleBackColor = true;
@@ -97,9 +100,11 @@
             this.groupBox1.Controls.Add(this.radioKernelPipe);
             this.groupBox1.Controls.Add(this.radioNewProcess);
             this.groupBox1.Controls.Add(this.radioRunningProcess);
-            this.groupBox1.Location = new System.Drawing.Point(1029, 12);
+            this.groupBox1.Location = new System.Drawing.Point(772, 10);
+            this.groupBox1.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(200, 100);
+            this.groupBox1.Padding = new System.Windows.Forms.Padding(2, 2, 2, 2);
+            this.groupBox1.Size = new System.Drawing.Size(150, 81);
             this.groupBox1.TabIndex = 3;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Source";
@@ -107,9 +112,10 @@
             // radioKernelPipe
             // 
             this.radioKernelPipe.AutoSize = true;
-            this.radioKernelPipe.Location = new System.Drawing.Point(7, 76);
+            this.radioKernelPipe.Location = new System.Drawing.Point(5, 62);
+            this.radioKernelPipe.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.radioKernelPipe.Name = "radioKernelPipe";
-            this.radioKernelPipe.Size = new System.Drawing.Size(97, 20);
+            this.radioKernelPipe.Size = new System.Drawing.Size(79, 17);
             this.radioKernelPipe.TabIndex = 2;
             this.radioKernelPipe.Text = "Kernel Pipe";
             this.radioKernelPipe.UseVisualStyleBackColor = true;
@@ -118,9 +124,10 @@
             // radioNewProcess
             // 
             this.radioNewProcess.AutoSize = true;
-            this.radioNewProcess.Location = new System.Drawing.Point(7, 49);
+            this.radioNewProcess.Location = new System.Drawing.Point(5, 40);
+            this.radioNewProcess.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.radioNewProcess.Name = "radioNewProcess";
-            this.radioNewProcess.Size = new System.Drawing.Size(108, 20);
+            this.radioNewProcess.Size = new System.Drawing.Size(88, 17);
             this.radioNewProcess.TabIndex = 1;
             this.radioNewProcess.Text = "New Process";
             this.radioNewProcess.UseVisualStyleBackColor = true;
@@ -130,9 +137,10 @@
             // 
             this.radioRunningProcess.AutoSize = true;
             this.radioRunningProcess.Checked = true;
-            this.radioRunningProcess.Location = new System.Drawing.Point(7, 22);
+            this.radioRunningProcess.Location = new System.Drawing.Point(5, 18);
+            this.radioRunningProcess.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.radioRunningProcess.Name = "radioRunningProcess";
-            this.radioRunningProcess.Size = new System.Drawing.Size(130, 20);
+            this.radioRunningProcess.Size = new System.Drawing.Size(106, 17);
             this.radioRunningProcess.TabIndex = 0;
             this.radioRunningProcess.TabStop = true;
             this.radioRunningProcess.Text = "Running Process";
@@ -141,17 +149,19 @@
             // 
             // txtLog
             // 
-            this.txtLog.Location = new System.Drawing.Point(16, 496);
+            this.txtLog.Location = new System.Drawing.Point(12, 403);
+            this.txtLog.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.txtLog.Multiline = true;
             this.txtLog.Name = "txtLog";
-            this.txtLog.Size = new System.Drawing.Size(1211, 229);
+            this.txtLog.Size = new System.Drawing.Size(909, 187);
             this.txtLog.TabIndex = 4;
             // 
             // btnLaunch
             // 
-            this.btnLaunch.Location = new System.Drawing.Point(16, 40);
+            this.btnLaunch.Location = new System.Drawing.Point(12, 32);
+            this.btnLaunch.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.btnLaunch.Name = "btnLaunch";
-            this.btnLaunch.Size = new System.Drawing.Size(345, 49);
+            this.btnLaunch.Size = new System.Drawing.Size(259, 40);
             this.btnLaunch.TabIndex = 5;
             this.btnLaunch.Text = "Launch";
             this.btnLaunch.UseVisualStyleBackColor = true;
@@ -159,9 +169,10 @@
             // 
             // btnTest
             // 
-            this.btnTest.Location = new System.Drawing.Point(367, 66);
+            this.btnTest.Location = new System.Drawing.Point(275, 54);
+            this.btnTest.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.btnTest.Name = "btnTest";
-            this.btnTest.Size = new System.Drawing.Size(90, 23);
+            this.btnTest.Size = new System.Drawing.Size(68, 19);
             this.btnTest.TabIndex = 6;
             this.btnTest.Text = "Test";
             this.btnTest.UseVisualStyleBackColor = true;
@@ -173,9 +184,10 @@
             this.columnRegister,
             this.columnRegisterValue});
             this.listRegisters.HideSelection = false;
-            this.listRegisters.Location = new System.Drawing.Point(16, 96);
+            this.listRegisters.Location = new System.Drawing.Point(12, 78);
+            this.listRegisters.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.listRegisters.Name = "listRegisters";
-            this.listRegisters.Size = new System.Drawing.Size(235, 176);
+            this.listRegisters.Size = new System.Drawing.Size(177, 144);
             this.listRegisters.TabIndex = 7;
             this.listRegisters.UseCompatibleStateImageBehavior = false;
             this.listRegisters.View = System.Windows.Forms.View.Details;
@@ -196,9 +208,10 @@
             this.columnFunction,
             this.columnParameters});
             this.listStack.HideSelection = false;
-            this.listStack.Location = new System.Drawing.Point(16, 279);
+            this.listStack.Location = new System.Drawing.Point(12, 227);
+            this.listStack.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.listStack.Name = "listStack";
-            this.listStack.Size = new System.Drawing.Size(610, 209);
+            this.listStack.Size = new System.Drawing.Size(458, 171);
             this.listStack.TabIndex = 8;
             this.listStack.UseCompatibleStateImageBehavior = false;
             this.listStack.View = System.Windows.Forms.View.Details;
@@ -221,9 +234,10 @@
             this.columnError,
             this.columnStatus});
             this.listThreads.HideSelection = false;
-            this.listThreads.Location = new System.Drawing.Point(257, 95);
+            this.listThreads.Location = new System.Drawing.Point(193, 77);
+            this.listThreads.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.listThreads.Name = "listThreads";
-            this.listThreads.Size = new System.Drawing.Size(369, 177);
+            this.listThreads.Size = new System.Drawing.Size(278, 145);
             this.listThreads.TabIndex = 9;
             this.listThreads.UseCompatibleStateImageBehavior = false;
             this.listThreads.View = System.Windows.Forms.View.Details;
@@ -255,9 +269,10 @@
             this.columnAction,
             this.columnComment});
             this.listBreakpoints.HideSelection = false;
-            this.listBreakpoints.Location = new System.Drawing.Point(632, 279);
+            this.listBreakpoints.Location = new System.Drawing.Point(474, 227);
+            this.listBreakpoints.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.listBreakpoints.Name = "listBreakpoints";
-            this.listBreakpoints.Size = new System.Drawing.Size(595, 209);
+            this.listBreakpoints.Size = new System.Drawing.Size(447, 171);
             this.listBreakpoints.TabIndex = 10;
             this.listBreakpoints.UseCompatibleStateImageBehavior = false;
             this.listBreakpoints.View = System.Windows.Forms.View.Details;
@@ -265,12 +280,12 @@
             // columnOffset
             // 
             this.columnOffset.Text = "Offset";
-            this.columnOffset.Width = 147;
+            this.columnOffset.Width = 61;
             // 
             // columnInstruction
             // 
             this.columnInstruction.Text = "Instruction";
-            this.columnInstruction.Width = 143;
+            this.columnInstruction.Width = 71;
             // 
             // columnAction
             // 
@@ -285,26 +300,29 @@
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Location = new System.Drawing.Point(367, 13);
+            this.label2.Location = new System.Drawing.Point(275, 11);
+            this.label2.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(41, 16);
+            this.label2.Size = new System.Drawing.Size(35, 13);
             this.label2.TabIndex = 11;
             this.label2.Text = "State:";
             // 
             // labelState
             // 
             this.labelState.AutoSize = true;
-            this.labelState.Location = new System.Drawing.Point(420, 13);
+            this.labelState.Location = new System.Drawing.Point(315, 11);
+            this.labelState.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.labelState.Name = "labelState";
-            this.labelState.Size = new System.Drawing.Size(38, 16);
+            this.labelState.Size = new System.Drawing.Size(33, 13);
             this.labelState.TabIndex = 12;
             this.labelState.Text = "Idle...";
             // 
             // btnContinue
             // 
-            this.btnContinue.Location = new System.Drawing.Point(368, 40);
+            this.btnContinue.Location = new System.Drawing.Point(276, 32);
+            this.btnContinue.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.btnContinue.Name = "btnContinue";
-            this.btnContinue.Size = new System.Drawing.Size(90, 23);
+            this.btnContinue.Size = new System.Drawing.Size(68, 19);
             this.btnContinue.TabIndex = 13;
             this.btnContinue.Text = "Continue";
             this.btnContinue.UseVisualStyleBackColor = true;
@@ -312,9 +330,10 @@
             // 
             // btnCheck
             // 
-            this.btnCheck.Location = new System.Drawing.Point(463, 66);
+            this.btnCheck.Location = new System.Drawing.Point(347, 54);
+            this.btnCheck.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.btnCheck.Name = "btnCheck";
-            this.btnCheck.Size = new System.Drawing.Size(103, 23);
+            this.btnCheck.Size = new System.Drawing.Size(77, 19);
             this.btnCheck.TabIndex = 14;
             this.btnCheck.Text = "Check Status";
             this.btnCheck.UseVisualStyleBackColor = true;
@@ -323,26 +342,28 @@
             // label3
             // 
             this.label3.AutoSize = true;
-            this.label3.Location = new System.Drawing.Point(512, 13);
+            this.label3.Location = new System.Drawing.Point(384, 11);
+            this.label3.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(47, 16);
+            this.label3.Size = new System.Drawing.Size(40, 13);
             this.label3.TabIndex = 15;
             this.label3.Text = "Status:";
             // 
             // labelStatus
             // 
             this.labelStatus.AutoSize = true;
-            this.labelStatus.Location = new System.Drawing.Point(565, 13);
+            this.labelStatus.Location = new System.Drawing.Point(424, 11);
+            this.labelStatus.Margin = new System.Windows.Forms.Padding(2, 0, 2, 0);
             this.labelStatus.Name = "labelStatus";
-            this.labelStatus.Size = new System.Drawing.Size(38, 16);
+            this.labelStatus.Size = new System.Drawing.Size(33, 13);
             this.labelStatus.TabIndex = 16;
             this.labelStatus.Text = "Idle...";
             // 
             // FrmMain
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1239, 737);
+            this.ClientSize = new System.Drawing.Size(929, 599);
             this.Controls.Add(this.labelStatus);
             this.Controls.Add(this.label3);
             this.Controls.Add(this.btnCheck);
@@ -360,6 +381,7 @@
             this.Controls.Add(this.btnSelectSource);
             this.Controls.Add(this.comboSource);
             this.Controls.Add(this.label1);
+            this.Margin = new System.Windows.Forms.Padding(2, 2, 2, 2);
             this.Name = "FrmMain";
             this.Text = "WinDbgSharp";
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FrmMain_FormClosing);

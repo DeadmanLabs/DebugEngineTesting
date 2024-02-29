@@ -33,6 +33,9 @@ namespace WinDbgKiller
         {
             this.Text = this.Text + $" - {(Environment.Is64BitProcess ? "x64" : "x86")}";
             comboSource_DropDown(sender, e);
+            FrmAlt alt = new FrmAlt();
+            alt.Show();
+            this.Hide();
         }
 
         private void btnSelectSource_Click(object sender, EventArgs e)
@@ -73,6 +76,7 @@ namespace WinDbgKiller
             _engine.OnStateChange += handleStateChange;
             _engine.OnBreakpoint += handleBreakpoint;
             _engine.OnSessionChange += handleSessionChange;
+            _engine.OnEngineChange += handleEngineChange;
             if (radioRunningProcess.Checked)
             {
                 if (await _engine.AttachTo(int.Parse(comboSource.Text.Split(' ')[0])) == false)
@@ -613,6 +617,12 @@ namespace WinDbgKiller
                     dataAccesses.Remove(breakpoint);
                 }
             }
+            RefreshStats();
+        }
+
+        private async void handleEngineChange(object sender, EngineStateEventArgs e)
+        {
+            MessageBox.Show($"Flags: {e.Flags}{Environment.NewLine}Argument: {e.Argument}");
             RefreshStats();
         }
 
