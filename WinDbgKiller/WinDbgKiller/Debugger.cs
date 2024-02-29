@@ -834,6 +834,25 @@ namespace WinDbgKiller
             return await tcs.Task;
         }
 
+        public async Task<string> GetOpcodeAtAddress(ulong address)
+        {
+            var tcs = new TaskCompletionSource<string>();
+            EnqueueAction(() =>
+            {
+                uint instructionSize;
+                ulong endingOffset;
+                StringBuilder instruction = new StringBuilder(512);
+                int hr = _control.Disassemble(address, 0, instruction, instruction.Capacity, out instructionSize, out endingOffset);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to disassemble the instruction!");
+                    tcs.SetResult("Error");
+                }
+                tcs.SetResult(instruction.ToString());
+            });
+            return await tcs.Task;
+        }
+
         public async Task<ulong> GetCurrentInstructionAddress()
         {
             var tcs = new TaskCompletionSource<ulong>();
@@ -1199,21 +1218,60 @@ namespace WinDbgKiller
             return threads.ToArray();
         }
 
-        public List<BreakpointInfo> GetCurrentBreakpointsInfo()
+        public async Task<List<BreakpointInfo>> GetCurrentBreakpointsInfo()
         {
-            List<BreakpointInfo> breakpoints = new List<BreakpointInfo>();
-            List<uint> ids = new List<uint>();
-            uint count = 0;
-            int hr = _control.GetNumberBreakpoints(out count);
-            for (uint i = 0; i < count; i++)
+            var tcs = new TaskCompletionSource<List<BreakpointInfo>>();
+            EnqueueAction(async () =>
             {
-                IDebugBreakpoint breakpoint;
-                if (_control.GetBreakpointById(ids[(int)i], out breakpoint) == 0)
+                List<BreakpointInfo> breakpoints = new List<BreakpointInfo>();
+                uint count = 0;
+                int hr = _control.GetNumberBreakpoints(out count);
+                for (uint i = 0; i < count; i++)
                 {
-                    //Get Brekapoint
+                    IDebugBreakpoint breakpoint;
+                    if (_control.GetBreakpointByIndex(i, out breakpoint) == 0)
+                    {
+                        //Get Brekapoint
+                        BreakpointInfo info = new BreakpointInfo();
+                        breakpoint.GetId(out uint id);
+                        info.Id = id;
+                        breakpoint.GetOffset(out ulong offset);
+                        info.Offset = offset;
+                        int isEnabled = 0;
+
+                        info.Enabled = isEnabled != 0;
+                        StringBuilder expression = new StringBuilder(1024);
+                        uint expressionSize;
+                        hr = breakpoint.GetOffsetExpression(expression, expression.Capacity, out expressionSize);
+                        info.Expression = $"{expression.ToString()}";
+                        string opcode = await GetOpcodeAtAddress(offset);
+                        breakpoints.Add(info);
+                    }
                 }
-            }
-            return breakpoints;
+                tcs.SetResult(breakpoints);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<List<IDebugBreakpoint>> GetCurrentBreakpoints()
+        {
+            var tcs = new TaskCompletionSource<List<IDebugBreakpoint>>();
+            EnqueueAction(async () =>
+            {
+                List<IDebugBreakpoint> breakpoints = new List<IDebugBreakpoint>();
+                uint count = 0;
+                int hr = _control.GetNumberBreakpoints(out count);
+                for (uint i = 0; i < count; i++)
+                {
+                    IDebugBreakpoint breakpoint;
+                    if (_control.GetBreakpointByIndex(i, out breakpoint) == 0)
+                    {
+                        breakpoints.Add(breakpoint);
+                    }
+                }
+                tcs.SetResult(breakpoints);
+            });
+            return await tcs.Task;
         }
 
         #endregion
@@ -1259,6 +1317,7 @@ namespace WinDbgKiller
         public ulong Offset { get; set; }
         public bool Enabled { get; set; }
         public string Expression { get; set; }
+        public string Instruction { get; set; }
     }
 
     #region Args
