@@ -10,6 +10,7 @@ using System.Collections.Concurrent;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 
 namespace WinDbgKiller
 {
@@ -238,8 +239,7 @@ namespace WinDbgKiller
                 _client.SetOutputCallbacks(this);
                 _client.SetEventCallbacksWide(this);
                 _control.AddEngineOptions(DEBUG_ENGOPT.INITIAL_BREAK);
-                _symbols.SetSymbolPath("srv*");
-                _symbols.Reload("");
+                _symbols.SetSymbolPath("srv*http://msdl.microsoft.com/download/symbols");
             });
         }
 
@@ -263,6 +263,28 @@ namespace WinDbgKiller
             {
                 _debugDataSpace.ReadVirtual(address, buf, size, out uint readBytes);
                 tcs.SetResult((int)readBytes);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<bool> Break(bool blocking)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            EnqueueAction(() =>
+            {
+                int hr = _control.SetInterrupt(DEBUG_INTERRUPT.ACTIVE);
+                if (hr != 0)
+                {
+                    tcs.SetResult(false);
+                    return;
+                }
+                hr = _control.WaitForEvent(DEBUG_WAIT.DEFAULT, blocking ? uint.MaxValue : 0);
+                if (hr != 0)
+                {
+                    tcs.SetResult(false);
+                    return;
+                }
+                tcs.SetResult(true);
             });
             return await tcs.Task;
         }
@@ -680,6 +702,17 @@ namespace WinDbgKiller
         }
 
         #region Custom
+
+        public async Task<int> SetExecutionStatus(DEBUG_STATUS status)
+        {
+            var tcs = new TaskCompletionSource<int>();
+            EnqueueAction(() =>
+            {
+                int hr = _control.SetExecutionStatus(status);
+                tcs.SetResult(hr);
+            });
+            return await tcs.Task;
+        }
 
         public void addCallback(IDebugBreakpoint bp, Action<IDebugBreakpoint> callback)
         {

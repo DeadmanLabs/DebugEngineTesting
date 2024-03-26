@@ -111,3 +111,4 @@ D:\Code\DebugEngineTesting\WinDbgKiller\WinDbgKiller\obj\x86\Debug\WinDbgKiller.
 D:\Code\DebugEngineTesting\WinDbgKiller\WinDbgKiller\obj\x86\Debug\WinDbgKiller.exe
 D:\Code\DebugEngineTesting\WinDbgKiller\WinDbgKiller\obj\x86\Debug\WinDbgKiller.pdb
 D:\Code\DebugEngineTesting\WinDbgKiller\WinDbgKiller\obj\x86\Debug\WinDbgKiller.FrmAlt.resources
+C:\Users\Mike\Code\DebugEngineTesting\WinDbgKiller\WinDbgKiller\obj\x86\Debug\WinDbgKiller.FrmAlt.resources

@@ -34,6 +34,7 @@ namespace WinDbgKiller
 
         private void FrmAlt_Load(object sender, EventArgs e)
         {
+            txtOutput.ScrollBars = ScrollBars.Vertical;
             this.Text = this.Text + $" - {(Environment.Is64BitProcess ? "x64" : "x86")}";
             comboProcesses_DropDown(sender, e);
             frmEnabled_Cycle();
@@ -52,6 +53,8 @@ namespace WinDbgKiller
                 listThreads.Enabled = true;
                 listEngineFlags.Enabled = true;
                 treeModules.Enabled = true;
+                btnContinue.Enabled = true;
+                btnBreak.Enabled = true;
             }
             else
             {
@@ -64,6 +67,8 @@ namespace WinDbgKiller
                 listThreads.Enabled = !true;
                 listEngineFlags.Enabled = !true;
                 treeModules.Enabled = !true;
+                btnContinue.Enabled = !true;
+                btnBreak.Enabled = !true;
             }
         }
 
@@ -83,16 +88,18 @@ namespace WinDbgKiller
                 List<DEBUG_STACK_FRAME> stack = await _engine.listStack();
                 listStack.SafeOperation(async () =>
                 {
-                    listStack.Items.Clear();
-                    foreach (DEBUG_STACK_FRAME frame in stack)
+                    if (stack != null)
                     {
-                        ListViewItem lvi = new ListViewItem();
-                        lvi.Text = await _engine.GetFunctionFromFrame(frame);
-                        lvi.SubItems.Add(frame.Virtual.ToString());
-                        listStack.Items.Add(lvi);
+                        listStack.Items.Clear();
+                        foreach (DEBUG_STACK_FRAME frame in stack)
+                        {
+                            ListViewItem lvi = new ListViewItem();
+                            lvi.Text = await _engine.GetFunctionFromFrame(frame);
+                            lvi.SubItems.Add(frame.Virtual.ToString());
+                            listStack.Items.Add(lvi);
+                        }
                     }
                 });
-
             }
             else
             {
@@ -158,13 +165,21 @@ namespace WinDbgKiller
                 if (ofd.ShowDialog() == DialogResult.OK) 
                 {
                     _debuggeePath = ofd.FileName;
+                    txtOutput.SafeOperation(() =>
+                    {
+                        txtOutput.Text += $"Loaded Binary: {_debuggeePath}{Environment.NewLine}";
+                    });
                 }
             }
         }
 
         private async void btnDetach_Click(object sender, EventArgs e)
         {
-            if (_attached)
+            txtOutput.SafeOperation(() =>
+            {
+                txtOutput.Text = $"Attempting to start debugger...{Environment.NewLine}";
+            });
+            if (!_attached)
             {
                 //Attach here and start debugging
                 _engine = new Debugger();
@@ -186,11 +201,19 @@ namespace WinDbgKiller
                 _engine.OnSystemError += handleSystemError;
                 if (_debuggeePath != null && File.Exists(_debuggeePath))
                 {
+                    txtOutput.SafeOperation(() =>
+                    {
+                        txtOutput.Text += $"Starting debugged process...";
+                    });
                     ProcessStartInfo psInfo = new ProcessStartInfo();
                     psInfo.FileName = _debuggeePath;
                     psInfo.UseShellExecute = true;
                     _debuggee = Process.Start(psInfo);
-                    _attached = await _engine.AttachTo(_debuggee.Id);
+                    txtOutput.SafeOperation(() =>
+                    {
+                        txtOutput.Text += $"Done! PID: {_debuggee.Id}{Environment.NewLine}";
+                    });
+                    _attached = await _engine.AttachTo(_debuggee);
                     if (!_attached)
                     {
                         MessageBox.Show($"The debugger failed to attach to the process with ID: {_debuggee.Id}", "Failed to attach!", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -199,9 +222,23 @@ namespace WinDbgKiller
                         frmEnabled_Cycle();
                         return;
                     }
+                    else
+                    {
+                        txtOutput.SafeOperation(() =>
+                        {
+                            txtOutput.Text += $"Attached!{Environment.NewLine}";
+                        });
+                        _engine.SetInterrupt();
+                        await _engine.WaitForEvent();
+                        await _engine.Execute("g");
+                    }
                 }
                 else if (_debuggeePath == null) //Dodges non-existant files that have been selected
                 {
+                    txtOutput.SafeOperation(() =>
+                    {
+                        txtOutput.Text += $"Attaching to process...";
+                    });
                     Regex regex = new Regex(@"^(\d{4}) - (.+)$");
                     if (regex.Match(comboProcesses.Text).Success)
                     {
@@ -215,6 +252,10 @@ namespace WinDbgKiller
                             frmEnabled_Cycle();
                             return;
                         }
+                        txtOutput.SafeOperation(() =>
+                        {
+                            txtOutput.Text += $"Done!{Environment.NewLine}";
+                        });
                     }
                     else
                     {
@@ -230,9 +271,17 @@ namespace WinDbgKiller
             {
                 if (_engine != null)
                 {
+                    txtOutput.SafeOperation(() =>
+                    {
+                        txtOutput.Text += $"Detaching...";
+                    });
                     _engine.Detach();
                     _engine.Dispose();
                     _engine = null;
+                    txtOutput.SafeOperation(() =>
+                    {
+                        txtOutput.Text += $"Done!{Environment.NewLine}";
+                    });
                     frmEnabled_Cycle();
                     return;
                 }
@@ -253,42 +302,67 @@ namespace WinDbgKiller
 
         private void handleException(object sender, ExceptionEventArgs e)
         {
-            MessageBox.Show(e.Exception.ToString(), "Exception Hit!");
+            //MessageBox.Show(e.Exception.ToString(), "Exception Hit!");
+            MessageBox.Show($"First Chance: {e.FirstChance}{Environment.NewLine}" +
+                $"Exception - Address: {e.Exception.ExceptionAddress}{Environment.NewLine}" +
+                $"Exception - Code: {e.Exception.ExceptionCode}{Environment.NewLine}" +
+                $"Exception - Flags: {e.Exception.ExceptionFlags}{Environment.NewLine}" +
+                $"Exception - Record: {e.Exception.ExceptionRecord}{Environment.NewLine}" +
+                $"Exception - Number Parameters: {e.Exception.NumberParameters}", "Exception Hit!");
         }
 
         private void handleModuleLoad(object sender, LoadModuleEventArgs e)
         {
-
+            MessageBox.Show($"Base Offset: {e.BaseOffset}{Environment.NewLine}" +
+                $"Checksum: {e.Checksum}{Environment.NewLine}" +
+                $"Image File Handle: {e.ImageFileHandle}{Environment.NewLine}" +
+                $"Image Name: {e.ImageName}{Environment.NewLine}" +
+                $"Module Name: {e.ModuleName}{Environment.NewLine}" +
+                $"Module Size: {e.ModuleSize}{Environment.NewLine}" +
+                $"TimeDate Stamp: {e.TimeDateStamp}{Environment.NewLine}", "Importted!");
         }
 
         private void handleModuleUnload(object sender, UnloadModuleEventArgs e)
         {
-
+            MessageBox.Show($"Base Offset: {e.BaseOffset}{Environment.NewLine}" +
+                $"Image Base Name: {e.ImageBaseName}", "Unloaded!");
         }
 
         private void handleProcessCreate(object sender, CreateProcessEventArgs e)
         {
-
+            MessageBox.Show($"Base Offset: {e.BaseOffset}{Environment.NewLine}" +
+                $"CheckSum: {e.CheckSum}{Environment.NewLine}" +
+                $"Handle: {e.Handle}{Environment.NewLine}" +
+                $"Image File Handle: {e.ImageFileHandle}{Environment.NewLine}" +
+                $"Image Name: {e.ImageName}{Environment.NewLine}" +
+                $"Initial Thread Handle: {e.InitialThreadHandle}{Environment.NewLine}" +
+                $"Module Name: {e.ModuleName}{Environment.NewLine}" +
+                $"Module Size: {e.ModuleSize}{Environment.NewLine}" +
+                $"Start Offset: {e.StartOffset}{Environment.NewLine}" +
+                $"Thread Data Offset: {e.ThreadDataOffset}{Environment.NewLine}" +
+                $"TimeDate Stamp: {e.TimeDateStamp}", "Process Created!");
         }
 
         private void handleProcessTerminate(object sender, ExitProcessEventArgs e)
         {
-
+            MessageBox.Show($"Exit Code: {e.ExitCode}", "Process Terminated!");
         }
 
         private void handleBreakpoint(object sender, BreakpointEventArgs e)
         {
-
+            MessageBox.Show($"Breakpoint!");//We cant translate this obj yet
         }
 
         private void handleThreadCreate(object sender, CreateThreadEventArgs e)
         {
-
+            MessageBox.Show($"Handle: {e.Handle}{Environment.NewLine}" +
+                $"Data Offset: {e.DataOffset}{Environment.NewLine}" +
+                $"Start Offset: {e.StartOffset}", "Thread Created!");
         }
 
         private void handleThreadTerminate(object sender, ExitThreadEventArgs e)
         {
-
+            MessageBox.Show($"Exit Code: {e.ExitCode}", "Thread Termniated!");
         }
 
         private void handleSessionChange(object sender, SessionStatusEventArgs e)
@@ -326,5 +400,27 @@ namespace WinDbgKiller
         }
 
         #endregion
+
+        private async void btnContinue_Click(object sender, EventArgs e)
+        {
+            if (_attached && _engine != null)
+            {
+                await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                await _engine.WaitForEvent();
+                btnBreak.Enabled = true;
+                btnContinue.Enabled = false;
+            }
+        }
+
+        private async void btnBreak_Click(object sender, EventArgs e)
+        {
+            if (_attached && _engine != null)
+            {
+                btnBreak.Enabled = false;
+                bool broken = await _engine.Break(true);
+                btnContinue.Enabled = broken;
+                btnBreak.Enabled = !broken;
+            }
+        }
     }
 }
