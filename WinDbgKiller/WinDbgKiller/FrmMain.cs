@@ -620,7 +620,7 @@ namespace WinDbgKiller
             RefreshStats();
         }
 
-        private async void handleEngineChange(object sender, EngineStateEventArgs e)
+        private void handleEngineChange(object sender, EngineStateEventArgs e)
         {
             MessageBox.Show($"Flags: {e.Flags}{Environment.NewLine}Argument: {e.Argument}");
             RefreshStats();

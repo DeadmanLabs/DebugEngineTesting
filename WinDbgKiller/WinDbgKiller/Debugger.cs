@@ -289,6 +289,48 @@ namespace WinDbgKiller
             return await tcs.Task;
         }
 
+        public async Task<Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)>> GetModuleFuncs(ulong baseOffset)
+        {
+            var tcs = new TaskCompletionSource<Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)>>();
+            EnqueueAction(() =>
+            {
+                Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)> funcs = new Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)>();
+                uint numSymbols;
+                int hr = _symbols.GetSymbolEntriesByOffset(
+                    baseOffset,
+                    0,
+                    null,
+                    null,
+                    0,
+                    out numSymbols);
+                DEBUG_MODULE_AND_ID[] ids = new DEBUG_MODULE_AND_ID[numSymbols];
+                ulong[] displacements = new ulong[numSymbols];
+                for (int i = 0; i < numSymbols; i++)
+                {
+                    /*
+                    StringBuilder builder = new StringBuilder(512);
+                    uint builderSize;
+                    hr = _symbols.GetSymbolEntryString(ids[i], 0, builder, builder.Capacity, out builderSize);
+                    if (hr != 0)
+                    {
+                        tcs.SetResult(funcs);
+                        return;
+                    }
+                    */
+                    DEBUG_SYMBOL_ENTRY entry;
+                    hr = _symbols.GetSymbolEntryInformation(ids[i], out entry);
+                    if (hr != 0)
+                    {
+                        tcs.SetResult(funcs);
+                        return;
+                    }
+                    funcs.Add(displacements[i], ("", entry));
+                }
+                tcs.SetResult(funcs);
+            });
+            return await tcs.Task;
+        }
+
         /// <summary>
         /// Custom Kernel Attach
         /// </summary>
@@ -1172,7 +1214,7 @@ namespace WinDbgKiller
         public async Task<List<DEBUG_STACK_FRAME>> listStack()
         {
             var tcs = new TaskCompletionSource<List<DEBUG_STACK_FRAME>>();
-            EnqueueAction(async () =>
+            EnqueueAction(() =>
             {
                 List<DEBUG_STACK_FRAME> stack = new List<DEBUG_STACK_FRAME>();
                 int frameSize = 10;
@@ -1289,7 +1331,7 @@ namespace WinDbgKiller
         public async Task<List<IDebugBreakpoint>> GetCurrentBreakpoints()
         {
             var tcs = new TaskCompletionSource<List<IDebugBreakpoint>>();
-            EnqueueAction(async () =>
+            EnqueueAction(() =>
             {
                 List<IDebugBreakpoint> breakpoints = new List<IDebugBreakpoint>();
                 uint count = 0;

@@ -311,21 +311,31 @@ namespace WinDbgKiller
                 $"Exception - Number Parameters: {e.Exception.NumberParameters}", "Exception Hit!");
         }
 
-        private void handleModuleLoad(object sender, LoadModuleEventArgs e)
+        private async void handleModuleLoad(object sender, LoadModuleEventArgs e)
         {
+            /*
             MessageBox.Show($"Base Offset: {e.BaseOffset}{Environment.NewLine}" +
                 $"Checksum: {e.Checksum}{Environment.NewLine}" +
                 $"Image File Handle: {e.ImageFileHandle}{Environment.NewLine}" +
                 $"Image Name: {e.ImageName}{Environment.NewLine}" +
                 $"Module Name: {e.ModuleName}{Environment.NewLine}" +
                 $"Module Size: {e.ModuleSize}{Environment.NewLine}" +
-                $"TimeDate Stamp: {e.TimeDateStamp}{Environment.NewLine}", "Importted!");
+                $"TimeDate Stamp: {e.TimeDateStamp}{Environment.NewLine}", "Importted!"); */
+            Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)> functions = await _engine.GetModuleFuncs(e.BaseOffset);
+            TreeNode node = new TreeNode(e.ImageName);
+            foreach (KeyValuePair<ulong, (string, DEBUG_SYMBOL_ENTRY)> function in functions)
+            {
+                node.Nodes.Add(function.Value.Item1);
+            }
+            treeModules.SafeOperation(() =>
+            {
+                treeModules.Nodes.Add(node);
+            });
         }
 
         private void handleModuleUnload(object sender, UnloadModuleEventArgs e)
         {
-            MessageBox.Show($"Base Offset: {e.BaseOffset}{Environment.NewLine}" +
-                $"Image Base Name: {e.ImageBaseName}", "Unloaded!");
+            treeModules.Nodes.RemoveByKey(e.ImageBaseName);
         }
 
         private void handleProcessCreate(object sender, CreateProcessEventArgs e)
