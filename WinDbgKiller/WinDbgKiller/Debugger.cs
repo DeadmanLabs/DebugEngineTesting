@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Net.Sockets;
+using System.Net;
 
 namespace WinDbgKiller
 {
@@ -86,11 +88,57 @@ namespace WinDbgKiller
         FPDPSEL = 47,
         MXCSR = 64,
     }
+    /*
+
+    [StructLayout(LayoutKind.Explicit)]
+    public struct DEBUG_MODULE_AND_ID
+    {
+        [FieldOffset(0)]
+        public ulong ModuleBase;
+        [FieldOffset(8)]
+        public ulong Id;
+    }
+    */
+
+    public class PageGuard 
+    {
+        public const uint PAGE_READONLY = 0x02;
+        public const uint PAGE_READWRITE = 0x04;
+        public const uint PAGE_GUARD = 0x100;
+        public const uint PAGE_NOACCESS = 0x01;
+
+        [DllImport("kernel32.dll")]
+        public static extern bool VirtualProtect(IntPtr lpAddress, uint dwSize, uint flNewProtect, out uint lpflOldProtect);
+
+        [DllImport("kernel32.dll")]
+        public static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
+
+        public const uint MEM_COMMIT = 0x1000;
+        public const uint MEM_RESERVE = 0x2000;
+
+        [DllImport("kernel32.dll")]
+        public static extern uint GetLastError();
+    }
 
     public class Debugger : IDebugOutputCallbacks, IDebugEventCallbacksWide, IDisposable
     {
         [DllImport("dbgeng.dll")]
         internal static extern int DebugCreate(ref Guid InterfaceId, [MarshalAs(UnmanagedType.IUnknown)] out object Interface);
+
+        // P/Invoke signature for GetSymbolEntryString.
+        [DllImport("dbgeng.dll", EntryPoint = "IDebugSymbol5", ExactSpelling = true, PreserveSig = true, CharSet = CharSet.Ansi)]
+        private static extern int GetSymbolEntryString(
+            [In] ref DEBUG_MODULE_AND_ID Id,
+            [In] uint Which,
+            [Out] StringBuilder Buffer,
+            [In] int BufferSize,
+            out uint StringSize
+        );
+        [DllImport("dbgeng.dll", EntryPoint = "IDebugSymbol5", ExactSpelling = true, PreserveSig = true)]
+        private static extern int GetSymbolEntryInformation(
+            [In] ref DEBUG_MODULE_AND_ID Id,
+            [Out] out DEBUG_SYMBOL_ENTRY Entry
+        );
 
         static List<DbgEngRegister> registersAsList = new List<DbgEngRegister>
         {
@@ -206,6 +254,7 @@ namespace WinDbgKiller
 
         public bool useCallbacks { get; set; }
         public Dictionary<IDebugBreakpoint, Action<IDebugBreakpoint>> callbacks { get; private set; }
+        public Dictionary<ulong, uint> guardedPages { get; private set; }
         private BlockingCollection<Action> _actionQueue = new BlockingCollection<Action>();
         private Thread _executorThread;
         private bool disposing = false;
@@ -215,7 +264,8 @@ namespace WinDbgKiller
             _executorThread = new Thread(ExecutorLoop);
             _executorThread.Start();
             callbacks = new Dictionary<IDebugBreakpoint, Action<IDebugBreakpoint>>();
-
+            guardedPages = new Dictionary<ulong, uint>();
+            
             EnqueueAction(() =>
             {
                 Guid guid = new Guid("27fe5639-8407-4f47-8364-ee118fb08ac8");
@@ -267,6 +317,107 @@ namespace WinDbgKiller
             return await tcs.Task;
         }
 
+        public async Task<IntPtr> ReadNativePointer(ulong address, bool littleEndian = false)
+        {
+            var tcs = new TaskCompletionSource<IntPtr>();
+            byte[] ptr = new byte[8];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, ptr, 8, out _);
+                if (littleEndian) Array.Reverse(ptr);
+                tcs.SetResult(new IntPtr(BitConverter.ToInt64(ptr, 0)));
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<short> ReadSignedWord(ulong address, bool littleEndian = false)
+        {
+            var tcs = new TaskCompletionSource<short>();
+            byte[] word = new byte[2];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, word, 2, out _);
+                if (littleEndian) Array.Reverse(word);
+                tcs.SetResult(BitConverter.ToInt16(word, 0));
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<byte> ReadByte(ulong address)
+        {
+            var tcs = new TaskCompletionSource<byte>();
+            byte[] myByte = new byte[1];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, myByte, 1, out _);
+                tcs.SetResult(myByte[0]);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<byte[]> ReadBytes(ulong address, uint size = 8, bool littleEndian = false)
+        {
+            var tcs = new TaskCompletionSource<byte[]>();
+            byte[] byteArray = new byte[size];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, byteArray, size, out _);
+                tcs.SetResult(byteArray);
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<ulong> ReadPointer(ulong address, bool littleEndian = false)
+        {
+            var tcs = new TaskCompletionSource<ulong>();
+            byte[] ptr = new byte[8];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, ptr, 8, out _);
+                if (littleEndian) Array.Reverse(ptr);
+                tcs.SetResult(BitConverter.ToUInt64(ptr, 0));
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<int> ReadSignedDWord(ulong address, bool littleEndian = false)
+        {
+            var tcs = new TaskCompletionSource<int>();
+            byte[] dword = new byte[4];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, dword, 4, out _);
+                if (littleEndian) Array.Reverse(dword);
+                tcs.SetResult(BitConverter.ToInt32(dword, 0));
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<uint> ReadUnsignedDWord(ulong address, bool littleEndian = false)
+        {
+            var tcs = new TaskCompletionSource<uint>();
+            byte[] dword = new byte[4];
+            EnqueueAction(() =>
+            {
+                _debugDataSpace.ReadVirtual(address, dword, 4, out _);
+                if (littleEndian) Array.Reverse(dword);
+                tcs.SetResult(BitConverter.ToUInt32(dword, 0));
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<KeyValuePair<AddressFamily, IPEndPoint>> ReadSocketAddress(ulong address, bool littleEndian = false)
+        {
+            //Its little endian, the ip is backwards
+            AddressFamily family = (AddressFamily)(await ReadSignedWord(await ReadPointer(address, littleEndian), littleEndian));
+            byte[] portRaw = await ReadBytes(await ReadPointer(address, littleEndian) + 2, 2, littleEndian);
+            //MessageBox.Show($"Raw Port: {BitConverter.ToString(portRaw)}", "Port Info", MessageBoxButtons.OK);
+            int port = portRaw[0] * 256 + portRaw[1];
+            string ipAddress = $"{await ReadByte(await ReadPointer(address, littleEndian) + 4)}.{await ReadByte(await ReadPointer(address, littleEndian) + 5)}.{await ReadByte(await ReadPointer(address, littleEndian) + 6)}.{await ReadByte(await ReadPointer(address, littleEndian) + 7)}";
+            KeyValuePair<AddressFamily, IPEndPoint> socketAddress = new KeyValuePair<AddressFamily, IPEndPoint>(family, new IPEndPoint(IPAddress.Parse(ipAddress), port));
+            return socketAddress;
+        }
+
         public async Task<bool> Break(bool blocking)
         {
             var tcs = new TaskCompletionSource<bool>();
@@ -303,29 +454,59 @@ namespace WinDbgKiller
                     null,
                     0,
                     out numSymbols);
-                DEBUG_MODULE_AND_ID[] ids = new DEBUG_MODULE_AND_ID[numSymbols];
+                if (hr != 0 || numSymbols == 0)
+                {
+                    //MessageBox.Show("Failed to get number of symbols", "Error!");
+                    tcs.SetResult(funcs);
+                    return;
+                }
+                /*
+                Microsoft.Diagnostics.Runtime.Interop.DEBUG_MODULE_AND_ID[] ids = new Microsoft.Diagnostics.Runtime.Interop.DEBUG_MODULE_AND_ID[numSymbols];
                 ulong[] displacements = new ulong[numSymbols];
+                hr = _symbols.GetSymbolEntriesByOffset(
+                    baseOffset,
+                    0,
+                    ids,
+                    displacements,
+                    numSymbols,
+                    out _);
+                if (hr != 0)
+                {
+                    MessageBox.Show("Failed to get symbols", "Error!");
+                    tcs.SetResult(funcs);
+                    return;
+                }
                 for (int i = 0; i < numSymbols; i++)
                 {
-                    /*
-                    StringBuilder builder = new StringBuilder(512);
-                    uint builderSize;
-                    hr = _symbols.GetSymbolEntryString(ids[i], 0, builder, builder.Capacity, out builderSize);
-                    if (hr != 0)
+                    DEBUG_MODULE_AND_ID id = ids[i];
+                    MessageBox.Show($"Module Base: {ids[i].ModuleBase}{Environment.NewLine}ID: {ids[i].Id}", "DEBUG_MODULE_AND_ID");
+                    try
                     {
-                        tcs.SetResult(funcs);
-                        return;
+                        StringBuilder builder = new StringBuilder(512);
+                        uint builderSize;
+                        hr = _symbols.GetSymbolEntryString(id, 0, builder, builder.Capacity, out builderSize);
+                        if (hr != 0)
+                        {
+                            MessageBox.Show("Failed to build symbol name", "Error!");
+                            tcs.SetResult(funcs);
+                            return;
+                        }
+                        DEBUG_SYMBOL_ENTRY entry;
+                        hr = _symbols.GetSymbolEntryInformation(id, out entry);
+                        if (hr != 0)
+                        {
+                            MessageBox.Show("Failed to get symbol entry info", "Error!");
+                            tcs.SetResult(funcs);
+                            return;
+                        }
+                        funcs.Add(displacements[i], (builder.ToString(), entry));
                     }
-                    */
-                    DEBUG_SYMBOL_ENTRY entry;
-                    hr = _symbols.GetSymbolEntryInformation(ids[i], out entry);
-                    if (hr != 0)
+                    catch (Exception ex)
                     {
-                        tcs.SetResult(funcs);
-                        return;
+                        MessageBox.Show($"Failed to grab info: {ex}", "Failed to grab module info!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }
-                    funcs.Add(displacements[i], ("", entry));
                 }
+                */
                 tcs.SetResult(funcs);
             });
             return await tcs.Task;
@@ -837,6 +1018,7 @@ namespace WinDbgKiller
                     MessageBox.Show("Failed to set breakpoint offset!");
                     tcs.SetResult(breakpoint);
                 }
+                hr = breakpoint.SetDataParameters(4, DEBUG_BREAKPOINT_ACCESS_TYPE.READ);
                 hr = breakpoint.SetFlags(DEBUG_BREAKPOINT_FLAG.ENABLED);
                 if (hr != 0)
                 {
@@ -846,6 +1028,51 @@ namespace WinDbgKiller
                 tcs.SetResult(breakpoint);
             });
             return await tcs.Task;
+        }
+
+        public IntPtr PtrToNative(ulong address)
+        {
+            if (Environment.Is64BitProcess)
+            {
+                IntPtr addressPtr = unchecked((IntPtr)(long)address);
+                return addressPtr;
+            }
+            else
+            {
+                if (address <= uint.MaxValue)
+                {
+                    IntPtr addressPtr = (IntPtr)(int)address;
+                    return addressPtr;
+                }
+                else
+                {
+                    throw new ArgumentOutOfRangeException(nameof(address), "Address is too large for a 32-it environment.");
+                }
+            }
+            return IntPtr.Zero;
+        }
+
+        public uint SetMemoryGuard(ulong address, uint size)
+        {
+            uint oldProtect;
+            if (!PageGuard.VirtualProtect(PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect))
+            {
+                MessageBox.Show($"Failed to install page guard!", "Failed!", MessageBoxButtons.OK);
+                return (uint)0;
+            }
+            guardedPages.Add((ulong)address, oldProtect);
+            return oldProtect;
+        }
+
+        public uint RemoveMemoryGuard(ulong address, uint size)
+        {
+            if (!PageGuard.VirtualProtect(PtrToNative(address), size, guardedPages[address], out _))
+            {
+                MessageBox.Show($"Failed to remove page guard!", "Failed!", MessageBoxButtons.OK);
+                return (uint)0;
+            }
+            guardedPages.Remove(address);
+            return (uint)0;
         }
 
         public async Task<int> GetRegisterIndex(string register)

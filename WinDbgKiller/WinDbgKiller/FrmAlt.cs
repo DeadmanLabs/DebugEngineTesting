@@ -27,6 +27,8 @@ namespace WinDbgKiller
         private String _debuggeePath;
         private Process _debuggee;
         private bool _attached;
+
+        private ulong pointerSize = 4;
         public FrmAlt()
         {
             InitializeComponent();
@@ -36,6 +38,10 @@ namespace WinDbgKiller
         {
             txtOutput.ScrollBars = ScrollBars.Vertical;
             this.Text = this.Text + $" - {(Environment.Is64BitProcess ? "x64" : "x86")}";
+            if (Environment.Is64BitProcess)
+            {
+                this.pointerSize += 4;
+            }
             comboProcesses_DropDown(sender, e);
             frmEnabled_Cycle();
         }
@@ -304,11 +310,15 @@ namespace WinDbgKiller
         {
             //MessageBox.Show(e.Exception.ToString(), "Exception Hit!");
             MessageBox.Show($"First Chance: {e.FirstChance}{Environment.NewLine}" +
-                $"Exception - Address: {e.Exception.ExceptionAddress}{Environment.NewLine}" +
-                $"Exception - Code: {e.Exception.ExceptionCode}{Environment.NewLine}" +
+                $"Exception - Address: {e.Exception.ExceptionAddress}{Environment.NewLine}" + //addr
+                $"Exception - Code: {e.Exception.ExceptionCode}{Environment.NewLine}" +       //code
                 $"Exception - Flags: {e.Exception.ExceptionFlags}{Environment.NewLine}" +
                 $"Exception - Record: {e.Exception.ExceptionRecord}{Environment.NewLine}" +
                 $"Exception - Number Parameters: {e.Exception.NumberParameters}", "Exception Hit!");
+            if (e.Exception.ExceptionCode == 0x80000001)
+            {
+                MessageBox.Show("Page Guard Violation Detected!");
+            }
         }
 
         private async void handleModuleLoad(object sender, LoadModuleEventArgs e)
@@ -322,7 +332,7 @@ namespace WinDbgKiller
                 $"Module Size: {e.ModuleSize}{Environment.NewLine}" +
                 $"TimeDate Stamp: {e.TimeDateStamp}{Environment.NewLine}", "Importted!"); */
             Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)> functions = await _engine.GetModuleFuncs(e.BaseOffset);
-            TreeNode node = new TreeNode(e.ImageName);
+            TreeNode node = new TreeNode(e.ModuleName);
             foreach (KeyValuePair<ulong, (string, DEBUG_SYMBOL_ENTRY)> function in functions)
             {
                 node.Nodes.Add(function.Value.Item1);
@@ -331,6 +341,138 @@ namespace WinDbgKiller
             {
                 treeModules.Nodes.Add(node);
             });
+            if (e.ModuleName == "WS2_32")
+            {
+                IDebugBreakpoint bindBreak = await _engine.SetBreakAtFunction("WS2_32", "bind");
+                IDebugBreakpoint listenBreak = await _engine.SetBreakAtFunction("WS2_32", "listen");
+                IDebugBreakpoint acceptBreak = await _engine.SetBreakAtFunction("WS2_32", "accept");
+                IDebugBreakpoint connectBreak = await _engine.SetBreakAtFunction("WS2_32", "connect");
+                IDebugBreakpoint sendBreak = await _engine.SetBreakAtFunction("WS2_32", "send");
+                IDebugBreakpoint recvBreak = await _engine.SetBreakAtFunction("WS2_32", "recv");
+                _engine.addCallback(bindBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong socketAddr = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+                    ulong nameLen = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
+
+                    KeyValuePair<AddressFamily, IPEndPoint> address = await _engine.ReadSocketAddress(socketAddr);
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Address Family: {AddressFamily.GetName(typeof(AddressFamily), address.Key)}{Environment.NewLine}" +
+                        $"Port: {address.Value.Port}{Environment.NewLine}" +
+                        $"Address: {address.Value.Address.ToString()}{Environment.NewLine}" +
+                        $"Name Length: {$"0x{nameLen:X}"}", "Bind Called!", MessageBoxButtons.OK);
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
+                });
+                _engine.addCallback(listenBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong backlog = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Backlog: {$"0x{backlog:X}"}", "Listen Called!", MessageBoxButtons.OK);
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
+                });
+                _engine.addCallback(acceptBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong socketAddr = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+                    ulong nameLen = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
+
+                    KeyValuePair<AddressFamily, IPEndPoint> address = await _engine.ReadSocketAddress(socketAddr);
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Address Family: {AddressFamily.GetName(typeof(AddressFamily), address.Key)}{Environment.NewLine}" +
+                        $"Port: {address.Value.Port}{Environment.NewLine}" +
+                        $"Address: {address.Value.Address.ToString()}{Environment.NewLine}" +
+                        $"Name Length: {$"0x{nameLen:X}"}", "Accept Called!", MessageBoxButtons.OK);
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
+                });
+                _engine.addCallback(connectBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong socketAddr = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+                    ulong nameLen = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
+
+                    KeyValuePair<AddressFamily, IPEndPoint> address = await _engine.ReadSocketAddress(socketAddr);
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Address Family: {AddressFamily.GetName(typeof(AddressFamily), address.Key)}{Environment.NewLine}" +
+                        $"Port: {address.Value.Port}{Environment.NewLine}" +
+                        $"Address: {address.Value.Address.ToString()}{Environment.NewLine}" +
+                        $"Name Length: {$"0x{nameLen:X}"}", "Connect Called!", MessageBoxButtons.OK);
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
+                });
+                _engine.addCallback(sendBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong dataPtr = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+                    ulong dataSize = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
+                    ulong flags = registers[DbgEngRegister.ESP] + (this.pointerSize * 4);
+
+                    short trueSize = await _engine.ReadSignedWord(dataSize);
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Data Pointer: {$"0x{dataPtr:X}"} -> \"{Encoding.ASCII.GetString(await _engine.ReadBytes(await _engine.ReadPointer(dataPtr), (uint)trueSize))}\"{Environment.NewLine}" +
+                        $"Data Size: {trueSize}{Environment.NewLine}" +
+                        $"Flags: {$"0x{flags:X}"}", "Send Called!", MessageBoxButtons.OK);
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
+                });
+                _engine.addCallback(recvBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong bufferPtr = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+                    ulong bufferSize = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
+                    ulong flags = registers[DbgEngRegister.ESP] + (this.pointerSize * 4);
+
+                    //
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Buffer Pointer: {$"0x{bufferPtr:X}"}{Environment.NewLine}" +
+                        $"Buffer Size: {bufferSize}{Environment.NewLine}" +
+                        $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
+                });
+            }
+            else if (e.ModuleName == "wsock32")
+            {
+                //MessageBox.Show($"We arent adding callbacks to this just yet", "wsock32 Importted!", MessageBoxButtons.OK);
+                IDebugBreakpoint altRecvBreak = await _engine.SetBreakAtFunction("wsock32", "recv");
+                _engine.addCallback(altRecvBreak, async (bp) =>
+                {
+                    Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
+                    ulong socket = registers[DbgEngRegister.ESP] + this.pointerSize;
+                    ulong bufferPtr = registers[DbgEngRegister.ESP] + (this.pointerSize * 2);
+                    ulong bufferSize = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
+                    ulong flags = registers[DbgEngRegister.ESP] + (this.pointerSize * 4);
+
+                    short trueSize = await _engine.ReadSignedWord(bufferSize);
+                    ulong dataBuffer = await _engine.ReadPointer(bufferPtr);
+                    MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
+                        $"Buffer Pointer: {$"0x{dataBuffer:X}"}{Environment.NewLine}" +
+                        $"Buffer Size: {trueSize}{Environment.NewLine}" +
+                        $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
+
+                    _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize));
+                    /*
+                    IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);
+                    _engine.addCallback(dataBufferBreak, async (dbp) =>
+                    {
+                        ulong instruct = await _engine.GetCurrentInstructionAddress();
+                        string opcode = await _engine.GetCurrentOpcode();
+
+                        MessageBox.Show($"0x{instruct:X} - {opcode}", "Data Buffer Accessed!", MessageBoxButtons.OK);
+                    });
+                    */
+                });
+            }
         }
 
         private void handleModuleUnload(object sender, UnloadModuleEventArgs e)
@@ -355,24 +497,24 @@ namespace WinDbgKiller
 
         private void handleProcessTerminate(object sender, ExitProcessEventArgs e)
         {
-            MessageBox.Show($"Exit Code: {e.ExitCode}", "Process Terminated!");
+            //MessageBox.Show($"Exit Code: {e.ExitCode}", "Process Terminated!");
         }
 
         private void handleBreakpoint(object sender, BreakpointEventArgs e)
         {
-            MessageBox.Show($"Breakpoint!");//We cant translate this obj yet
+            //MessageBox.Show($"Breakpoint!");//We cant translate this obj yet
         }
 
         private void handleThreadCreate(object sender, CreateThreadEventArgs e)
         {
-            MessageBox.Show($"Handle: {e.Handle}{Environment.NewLine}" +
-                $"Data Offset: {e.DataOffset}{Environment.NewLine}" +
-                $"Start Offset: {e.StartOffset}", "Thread Created!");
+            //MessageBox.Show($"Handle: {e.Handle}{Environment.NewLine}" +
+            //    $"Data Offset: {e.DataOffset}{Environment.NewLine}" +
+            //    $"Start Offset: {e.StartOffset}", "Thread Created!");
         }
 
         private void handleThreadTerminate(object sender, ExitThreadEventArgs e)
         {
-            MessageBox.Show($"Exit Code: {e.ExitCode}", "Thread Termniated!");
+            //MessageBox.Show($"Exit Code: {e.ExitCode}", "Thread Termniated!");
         }
 
         private void handleSessionChange(object sender, SessionStatusEventArgs e)
