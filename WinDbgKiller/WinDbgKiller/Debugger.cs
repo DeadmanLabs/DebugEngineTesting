@@ -320,13 +320,26 @@ namespace WinDbgKiller
         public async Task<IntPtr> ReadNativePointer(ulong address, bool littleEndian = false)
         {
             var tcs = new TaskCompletionSource<IntPtr>();
-            byte[] ptr = new byte[8];
-            EnqueueAction(() =>
+            if (Environment.Is64BitProcess)
             {
-                _debugDataSpace.ReadVirtual(address, ptr, 8, out _);
-                if (littleEndian) Array.Reverse(ptr);
-                tcs.SetResult(new IntPtr(BitConverter.ToInt64(ptr, 0)));
-            });
+                byte[] ptr = new byte[8];
+                EnqueueAction(() =>
+                {
+                    _debugDataSpace.ReadVirtual(address, ptr, 8, out _);
+                    if (littleEndian) Array.Reverse(ptr);
+                    tcs.SetResult(new IntPtr(BitConverter.ToInt64(ptr, 0)));
+                });
+            }
+            else
+            {
+                byte[] ptr = new byte[4];
+                EnqueueAction(() =>
+                {
+                    _debugDataSpace.ReadVirtual(address, ptr, 4, out _);
+                    if (littleEndian) Array.Reverse(ptr);
+                    tcs.SetResult(new IntPtr(BitConverter.ToInt32(ptr, 0)));
+                });
+            }
             return await tcs.Task;
         }
 
@@ -370,13 +383,26 @@ namespace WinDbgKiller
         public async Task<ulong> ReadPointer(ulong address, bool littleEndian = false)
         {
             var tcs = new TaskCompletionSource<ulong>();
-            byte[] ptr = new byte[8];
-            EnqueueAction(() =>
+            if (Environment.Is64BitProcess)
             {
-                _debugDataSpace.ReadVirtual(address, ptr, 8, out _);
-                if (littleEndian) Array.Reverse(ptr);
-                tcs.SetResult(BitConverter.ToUInt64(ptr, 0));
-            });
+                byte[] ptr = new byte[8];
+                EnqueueAction(() =>
+                {
+                    _debugDataSpace.ReadVirtual(address, ptr, 8, out _);
+                    if (littleEndian) Array.Reverse(ptr);
+                    tcs.SetResult(BitConverter.ToUInt64(ptr, 0));
+                });
+            }
+            else
+            {
+                byte[] ptr = new byte[4];
+                EnqueueAction(() =>
+                {
+                    _debugDataSpace.ReadVirtual(address, ptr, 4, out _);
+                    if (littleEndian) Array.Reverse(ptr);
+                    tcs.SetResult((ulong)BitConverter.ToUInt32(ptr, 0));
+                });
+            }
             return await tcs.Task;
         }
 
@@ -1046,16 +1072,23 @@ namespace WinDbgKiller
                 }
                 else
                 {
+                    uint maskedValue = (uint)(address & 0xFFFFFFFF);
+                    return new IntPtr(unchecked((int)maskedValue));
                     throw new ArgumentOutOfRangeException(nameof(address), "Address is too large for a 32-it environment.");
                 }
             }
             return IntPtr.Zero;
         }
 
-        public uint SetMemoryGuard(ulong address, uint size)
+        public IntPtr PtrToNativeUnsafe(ulong address)
+        {
+            return unchecked((IntPtr)(long)address);
+        }
+
+        public uint SetMemoryGuard(ulong address, uint size, bool useUnsafe = false)
         {
             uint oldProtect;
-            if (!PageGuard.VirtualProtect(PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect))
+            if (!PageGuard.VirtualProtect(useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect))
             {
                 MessageBox.Show($"Failed to install page guard!", "Failed!", MessageBoxButtons.OK);
                 return (uint)0;
@@ -1064,9 +1097,9 @@ namespace WinDbgKiller
             return oldProtect;
         }
 
-        public uint RemoveMemoryGuard(ulong address, uint size)
+        public uint RemoveMemoryGuard(ulong address, uint size, bool useUnsafe = false)
         {
-            if (!PageGuard.VirtualProtect(PtrToNative(address), size, guardedPages[address], out _))
+            if (!PageGuard.VirtualProtect(useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, guardedPages[address], out _))
             {
                 MessageBox.Show($"Failed to remove page guard!", "Failed!", MessageBoxButtons.OK);
                 return (uint)0;

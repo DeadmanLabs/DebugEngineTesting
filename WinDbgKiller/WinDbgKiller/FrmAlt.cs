@@ -460,7 +460,7 @@ namespace WinDbgKiller
                         $"Buffer Size: {trueSize}{Environment.NewLine}" +
                         $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
 
-                    _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize));
+                    _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize), true);
                     /*
                     IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);
                     _engine.addCallback(dataBufferBreak, async (dbp) =>
