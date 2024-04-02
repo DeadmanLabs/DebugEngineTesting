@@ -459,8 +459,10 @@ namespace WinDbgKiller
                         $"Buffer Pointer: {$"0x{dataBuffer:X}"}{Environment.NewLine}" +
                         $"Buffer Size: {trueSize}{Environment.NewLine}" +
                         $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
+                    //MessageBox.Show($"0x{dataBuffer:X} vs. 0x{_engine.PtrToNative(dataBuffer).ToString("X")}");
 
-                    _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize), true);
+                    uint prevAccess = _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize));
+                    MessageBox.Show($"Previous Access Metric: {prevAccess}", "Memory Guard Installed!", MessageBoxButtons.OK);
                     /*
                     IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);
                     _engine.addCallback(dataBufferBreak, async (dbp) =>

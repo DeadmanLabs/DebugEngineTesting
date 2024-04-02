@@ -118,6 +118,12 @@ namespace WinDbgKiller
 
         [DllImport("kernel32.dll")]
         public static extern uint GetLastError();
+
+        [DllImport("kernel32.dll")]
+        public static extern uint FormatMessage(uint dwFlags, IntPtr lpSource, uint dwMessageId, uint dwLanguageId, StringBuilder lpBuffer, uint nSize, IntPtr Arguments);
+
+        public const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
+        public const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
     }
 
     public class Debugger : IDebugOutputCallbacks, IDebugEventCallbacksWide, IDisposable
@@ -1090,7 +1096,15 @@ namespace WinDbgKiller
             uint oldProtect;
             if (!PageGuard.VirtualProtect(useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect))
             {
-                MessageBox.Show($"Failed to install page guard!", "Failed!", MessageBoxButtons.OK);
+                MessageBox.Show("Failed!");
+                uint errorCode = PageGuard.GetLastError();
+                StringBuilder messageBuffer = new StringBuilder(1024);
+                PageGuard.FormatMessage(PageGuard.FORMAT_MESSAGE_FROM_SYSTEM | PageGuard.FORMAT_MESSAGE_IGNORE_INSERTS, IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
+                string errorMessage = messageBuffer.ToString();
+                MessageBox.Show($"Failed to install page guard!{Environment.NewLine}" +
+                    $"Pointer: {$"0x{address:X}"}{Environment.NewLine}" +
+                    $"Size: {size}{Environment.NewLine}" +
+                    $"Error: {errorCode} -> {errorMessage}", "Failed!", MessageBoxButtons.OK);
                 return (uint)0;
             }
             guardedPages.Add((ulong)address, oldProtect);
@@ -1101,7 +1115,14 @@ namespace WinDbgKiller
         {
             if (!PageGuard.VirtualProtect(useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, guardedPages[address], out _))
             {
-                MessageBox.Show($"Failed to remove page guard!", "Failed!", MessageBoxButtons.OK);
+                uint errorCode = PageGuard.GetLastError();
+                StringBuilder messageBuffer = new StringBuilder(1024);
+                PageGuard.FormatMessage(PageGuard.FORMAT_MESSAGE_FROM_SYSTEM | PageGuard.FORMAT_MESSAGE_IGNORE_INSERTS, IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
+                string errorMessage = messageBuffer.ToString();
+                MessageBox.Show($"Failed to remove page guard!{Environment.NewLine}" +
+                    $"Pointer: {$"0x{address:X}"}{Environment.NewLine}" +
+                    $"Size: {size}{Environment.NewLine}" +
+                    $"Error: {errorCode} -> {errorMessage}", "Failed!", MessageBoxButtons.OK);
                 return (uint)0;
             }
             guardedPages.Remove(address);
