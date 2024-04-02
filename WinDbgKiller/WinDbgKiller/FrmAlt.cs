@@ -13,6 +13,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Data.Odbc;
 using Microsoft.Diagnostics.Runtime.Interop;
+using System.Runtime.InteropServices;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.CompilerServices;
@@ -308,16 +309,28 @@ namespace WinDbgKiller
 
         private void handleException(object sender, ExceptionEventArgs e)
         {
+            KeyValuePair<uint, string> errorInfo = PageGuard.GetError(e.Exception.ExceptionCode);
+
             //MessageBox.Show(e.Exception.ToString(), "Exception Hit!");
             MessageBox.Show($"First Chance: {e.FirstChance}{Environment.NewLine}" +
-                $"Exception - Address: {e.Exception.ExceptionAddress}{Environment.NewLine}" + //addr
+                $"Exception - Address: 0x{e.Exception.ExceptionAddress:X}{Environment.NewLine}" + //addr
                 $"Exception - Code: {e.Exception.ExceptionCode}{Environment.NewLine}" +       //code
                 $"Exception - Flags: {e.Exception.ExceptionFlags}{Environment.NewLine}" +
                 $"Exception - Record: {e.Exception.ExceptionRecord}{Environment.NewLine}" +
-                $"Exception - Number Parameters: {e.Exception.NumberParameters}", "Exception Hit!");
+                $"Exception - Number Parameters: {e.Exception.NumberParameters}{Environment.NewLine}" +
+                $"Error: {errorInfo.Key} -> {errorInfo.Value}", "Exception Hit!");
+            
             if (e.Exception.ExceptionCode == 0x80000001)
             {
                 MessageBox.Show("Page Guard Violation Detected!");
+            }
+            else if (e.Exception.ExceptionCode == 0x80000003)
+            {
+                MessageBox.Show("Breakpoint Exception!");
+            }
+            else if (e.Exception.ExceptionCode == 0x80000005)
+            {
+                MessageBox.Show("Access Violation!");
             }
         }
 
@@ -461,7 +474,7 @@ namespace WinDbgKiller
                         $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
                     //MessageBox.Show($"0x{dataBuffer:X} vs. 0x{_engine.PtrToNative(dataBuffer).ToString("X")}");
 
-                    uint prevAccess = _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize));
+                    uint prevAccess = _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize), false, _debuggee.Id);
                     MessageBox.Show($"Previous Access Metric: {prevAccess}", "Memory Guard Installed!", MessageBoxButtons.OK);
                     /*
                     IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);

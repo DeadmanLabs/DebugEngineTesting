@@ -107,14 +107,17 @@ namespace WinDbgKiller
         public const uint PAGE_GUARD = 0x100;
         public const uint PAGE_NOACCESS = 0x01;
 
-        [DllImport("kernel32.dll")]
-        public static extern bool VirtualProtect(IntPtr lpAddress, uint dwSize, uint flNewProtect, out uint lpflOldProtect);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool VirtualProtectEx(IntPtr hProcess, IntPtr lpAddress, uint dwSize, uint flNewProtect, out uint lpflOldProtect);
 
-        [DllImport("kernel32.dll")]
-        public static extern IntPtr VirtualAlloc(IntPtr lpAddress, uint dwSize, uint flAllocationType, uint flProtect);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern IntPtr OpenProcess(uint processAccess, bool bInheritHandle, uint processId);
+        [DllImport("kernel32.dll", SetLastError = true)]
+        public static extern bool CloseHandle(IntPtr hObject);
 
-        public const uint MEM_COMMIT = 0x1000;
-        public const uint MEM_RESERVE = 0x2000;
+        public const uint PROCESS_VM_OPERATION = 0x0008;
+        public const uint PROCESS_VM_READ = 0x0010;
+        public const uint PROCESS_VM_WRITE = 0x0020;
 
         [DllImport("kernel32.dll")]
         public static extern uint GetLastError();
@@ -124,6 +127,25 @@ namespace WinDbgKiller
 
         public const uint FORMAT_MESSAGE_FROM_SYSTEM = 0x00001000;
         public const uint FORMAT_MESSAGE_IGNORE_INSERTS = 0x00000200;
+
+        public static KeyValuePair<uint, string> GetError()
+        {
+            uint errorCode = GetLastError();
+            StringBuilder messageBuffer = new StringBuilder(1024);
+            FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
+            string errorMessage = messageBuffer.ToString();
+            KeyValuePair<uint, string> error = new KeyValuePair<uint, string>(errorCode, errorMessage);
+            return error;
+        }
+
+        public static KeyValuePair<uint, string> GetError(uint code)
+        {
+            StringBuilder messageBuffer = new StringBuilder(1024);
+            FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, IntPtr.Zero, code, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
+            string errorMessage = messageBuffer.ToString();
+            KeyValuePair<uint, string> error = new KeyValuePair<uint, string>(code, errorMessage);
+            return error;
+        }
     }
 
     public class Debugger : IDebugOutputCallbacks, IDebugEventCallbacksWide, IDisposable
@@ -264,6 +286,7 @@ namespace WinDbgKiller
         private BlockingCollection<Action> _actionQueue = new BlockingCollection<Action>();
         private Thread _executorThread;
         private bool disposing = false;
+        private int processId { get; set; }
 
         public Debugger()
         {
@@ -594,6 +617,7 @@ namespace WinDbgKiller
             EnqueueAction(() =>
             {
                 int hr = _client.AttachProcess(0, (uint)pid, DEBUG_ATTACH.DEFAULT);
+                this.processId = pid;
                 tcs.SetResult(hr >= 0);
                 if (hr >= 0)
                 {
@@ -609,6 +633,7 @@ namespace WinDbgKiller
             EnqueueAction(() =>
             {
                 int hr = _client.AttachProcess(0, (uint)proc.Id, DEBUG_ATTACH.DEFAULT);
+                this.processId = proc.Id;
                 tcs.SetResult(hr >= 0);
                 if (hr >= 0)
                 {
@@ -1091,42 +1116,67 @@ namespace WinDbgKiller
             return unchecked((IntPtr)(long)address);
         }
 
-        public uint SetMemoryGuard(ulong address, uint size, bool useUnsafe = false)
+        public uint SetMemoryGuard(ulong address, uint size, bool useUnsafe = false, int processId = -1)
         {
-            uint oldProtect;
-            if (!PageGuard.VirtualProtect(useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect))
+            IntPtr processHandle = PageGuard.OpenProcess(PageGuard.PROCESS_VM_OPERATION | PageGuard.PROCESS_VM_READ | PageGuard.PROCESS_VM_WRITE, false, (uint)(processId > -1 ? this.processId : processId));
+            if (processHandle == IntPtr.Zero)
             {
-                MessageBox.Show("Failed!");
-                uint errorCode = PageGuard.GetLastError();
-                StringBuilder messageBuffer = new StringBuilder(1024);
-                PageGuard.FormatMessage(PageGuard.FORMAT_MESSAGE_FROM_SYSTEM | PageGuard.FORMAT_MESSAGE_IGNORE_INSERTS, IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
-                string errorMessage = messageBuffer.ToString();
-                MessageBox.Show($"Failed to install page guard!{Environment.NewLine}" +
-                    $"Pointer: {$"0x{address:X}"}{Environment.NewLine}" +
-                    $"Size: {size}{Environment.NewLine}" +
-                    $"Error: {errorCode} -> {errorMessage}", "Failed!", MessageBoxButtons.OK);
-                return (uint)0;
+                KeyValuePair<uint, string> error = PageGuard.GetError();
+                MessageBox.Show($"Failed to get process handle for PID: {(uint)(processId > -1 ? this.processId : processId)}{Environment.NewLine}" +
+                    $"Error: {error.Key} -> {error.Value}", "Failed to get process handle!", MessageBoxButtons.OK);
+                return 0;
             }
+            MessageBox.Show($"New Process Handle: {$"0x{processHandle.ToString("X")}"}", "Process Handle Created!", MessageBoxButtons.OK);
+            uint oldProtect;
+            bool result = PageGuard.VirtualProtectEx(processHandle, useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect);
+            if (!result)
+            {
+                KeyValuePair<uint, string> error = PageGuard.GetError();
+                MessageBox.Show($"Failed to install page guard at {address:X} for {size} bytes{Environment.NewLine}" +
+                    $"Error: {error.Key} -> {error.Value}", "Failed to install page guard!", MessageBoxButtons.OK);
+                return 0;
+            }
+            MessageBox.Show($"Old Protect: {oldProtect}", "Page Guard Installed!", MessageBoxButtons.OK);
+            bool closeHandle = PageGuard.CloseHandle(processHandle);
+            if (!closeHandle)
+            {
+                KeyValuePair<uint, string> error = PageGuard.GetError();
+                MessageBox.Show($"Failed to close process handle: 0x{processHandle.ToString("X")}{Environment.NewLine}" +
+                    $"Error: {error.Key} -> {error.Value}", "Failed to close handle!", MessageBoxButtons.OK);
+            }
+            MessageBox.Show($"Closed Process Handle: {processHandle.ToString("X")}", "Process Handle Closed!", MessageBoxButtons.OK);
             guardedPages.Add((ulong)address, oldProtect);
             return oldProtect;
         }
 
-        public uint RemoveMemoryGuard(ulong address, uint size, bool useUnsafe = false)
+        public uint RemoveMemoryGuard(ulong address, uint size, bool useUnsafe = false, int processId = -1)
         {
-            if (!PageGuard.VirtualProtect(useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, guardedPages[address], out _))
+            IntPtr processHandle = PageGuard.OpenProcess(PageGuard.PROCESS_VM_OPERATION | PageGuard.PROCESS_VM_READ | PageGuard.PROCESS_VM_WRITE, false, (uint)(processId > -1 ? this.processId : processId));
+            if (processHandle == IntPtr.Zero)
             {
-                uint errorCode = PageGuard.GetLastError();
-                StringBuilder messageBuffer = new StringBuilder(1024);
-                PageGuard.FormatMessage(PageGuard.FORMAT_MESSAGE_FROM_SYSTEM | PageGuard.FORMAT_MESSAGE_IGNORE_INSERTS, IntPtr.Zero, errorCode, 0, messageBuffer, (uint)messageBuffer.Capacity, IntPtr.Zero);
-                string errorMessage = messageBuffer.ToString();
-                MessageBox.Show($"Failed to remove page guard!{Environment.NewLine}" +
-                    $"Pointer: {$"0x{address:X}"}{Environment.NewLine}" +
-                    $"Size: {size}{Environment.NewLine}" +
-                    $"Error: {errorCode} -> {errorMessage}", "Failed!", MessageBoxButtons.OK);
-                return (uint)0;
+                KeyValuePair<uint, string> error = PageGuard.GetError();
+                MessageBox.Show($"Failed to get process handle for PID: {(uint)(processId > -1 ? this.processId : processId)}{Environment.NewLine}" +
+                    $"Error: {error.Key} -> {error.Value}", "Failed to get process handle!", MessageBoxButtons.OK);
+                return 0;
             }
-            guardedPages.Remove(address);
-            return (uint)0;
+            uint oldProtect;
+            bool result = PageGuard.VirtualProtectEx(processHandle, useUnsafe ? PtrToNativeUnsafe(address) : PtrToNative(address), size, PageGuard.PAGE_NOACCESS, out oldProtect);
+            if (!result)
+            {
+                KeyValuePair<uint, string> error = PageGuard.GetError();
+                MessageBox.Show($"Failed to get process handle for PID: {(uint)(processId > -1 ? this.processId : processId)}{Environment.NewLine}" +
+                    $"Error: {error.Key} -> {error.Value}", "Failed to get process handle!", MessageBoxButtons.OK);
+                return 0;
+            }
+            bool closeHandle = PageGuard.CloseHandle(processHandle);
+            if (!closeHandle)
+            {
+                KeyValuePair<uint, string> error = PageGuard.GetError();
+                MessageBox.Show($"Failed to close process handle: 0x{processHandle.ToString("X")}{Environment.NewLine}" +
+                    $"Error: {error.Key} -> {error.Value}", "Failed to close handle!", MessageBoxButtons.OK);
+            }
+            guardedPages.Remove((ulong)address);
+            return oldProtect;
         }
 
         public async Task<int> GetRegisterIndex(string register)
