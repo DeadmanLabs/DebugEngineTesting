@@ -107,6 +107,29 @@ namespace WinDbgKiller
                         }
                     }
                 });
+                List<ThreadDetails> threads = await _engine.listThreads();
+                listThreads.SafeOperation(() =>
+                {
+                    if (threads != null)
+                    {
+                        foreach (ThreadDetails thread in threads)
+                        {
+                            listThreads.UpdateOrAdd($"{thread.ThreadId:X}", new string[] { thread.Active.ToString(), "", "" });
+                        }
+                    }
+                });
+                List<BreakpointInfo> breakpoints = await _engine.GetCurrentBreakpointsInfo();
+                listBreakpoints.SafeOperation(() =>
+                {
+                    if (breakpoints != null)
+                    {
+                        foreach (BreakpointInfo breakpoint in breakpoints)
+                        {
+                            bool hasCallback = _engine.callbacks.ContainsKey(breakpoint.Source);
+                            listBreakpoints.UpdateOrAdd($"0x{breakpoint.Offset:X}", new string[] { breakpoint.Instruction, breakpoint.Expression, hasCallback.ToString(), "" });
+                        }
+                    }
+                });
             }
             else
             {
@@ -273,6 +296,7 @@ namespace WinDbgKiller
                         return;
                     }
                 }
+                //await _engine.SetExceptionBreakStatus(true);
             } 
             else
             {
@@ -314,7 +338,7 @@ namespace WinDbgKiller
             //MessageBox.Show(e.Exception.ToString(), "Exception Hit!");
             MessageBox.Show($"First Chance: {e.FirstChance}{Environment.NewLine}" +
                 $"Exception - Address: 0x{e.Exception.ExceptionAddress:X}{Environment.NewLine}" + //addr
-                $"Exception - Code: {e.Exception.ExceptionCode}{Environment.NewLine}" +       //code
+                $"Exception - Code: 0x{e.Exception.ExceptionCode:X}{Environment.NewLine}" +       //code
                 $"Exception - Flags: {e.Exception.ExceptionFlags}{Environment.NewLine}" +
                 $"Exception - Record: {e.Exception.ExceptionRecord}{Environment.NewLine}" +
                 $"Exception - Number Parameters: {e.Exception.NumberParameters}{Environment.NewLine}" +
@@ -328,7 +352,7 @@ namespace WinDbgKiller
             {
                 MessageBox.Show("Breakpoint Exception!");
             }
-            else if (e.Exception.ExceptionCode == 0x80000005)
+            else if (e.Exception.ExceptionCode == 0xC0000005)
             {
                 MessageBox.Show("Access Violation!");
             }
@@ -474,9 +498,10 @@ namespace WinDbgKiller
                         $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
                     //MessageBox.Show($"0x{dataBuffer:X} vs. 0x{_engine.PtrToNative(dataBuffer).ToString("X")}");
 
-                    uint prevAccess = _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize), false, _debuggee.Id);
-                    MessageBox.Show($"Previous Access Metric: {prevAccess}", "Memory Guard Installed!", MessageBoxButtons.OK);
-                    /*
+                    //uint prevAccess = _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize), false, _debuggee.Id);
+                    //MessageBox.Show($"Previous Access Metric: {prevAccess}", "Memory Guard Installed!", MessageBoxButtons.OK);
+
+
                     IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);
                     _engine.addCallback(dataBufferBreak, async (dbp) =>
                     {
@@ -485,7 +510,6 @@ namespace WinDbgKiller
 
                         MessageBox.Show($"0x{instruct:X} - {opcode}", "Data Buffer Accessed!", MessageBoxButtons.OK);
                     });
-                    */
                 });
             }
         }
@@ -512,12 +536,14 @@ namespace WinDbgKiller
 
         private void handleProcessTerminate(object sender, ExitProcessEventArgs e)
         {
+
             //MessageBox.Show($"Exit Code: {e.ExitCode}", "Process Terminated!");
         }
 
         private void handleBreakpoint(object sender, BreakpointEventArgs e)
         {
             //MessageBox.Show($"Breakpoint!");//We cant translate this obj yet
+            frmRefresh_Stats();
         }
 
         private void handleThreadCreate(object sender, CreateThreadEventArgs e)
@@ -525,11 +551,13 @@ namespace WinDbgKiller
             //MessageBox.Show($"Handle: {e.Handle}{Environment.NewLine}" +
             //    $"Data Offset: {e.DataOffset}{Environment.NewLine}" +
             //    $"Start Offset: {e.StartOffset}", "Thread Created!");
+            frmRefresh_Stats();
         }
 
         private void handleThreadTerminate(object sender, ExitThreadEventArgs e)
         {
             //MessageBox.Show($"Exit Code: {e.ExitCode}", "Thread Termniated!");
+            frmRefresh_Stats();
         }
 
         private void handleSessionChange(object sender, SessionStatusEventArgs e)
@@ -558,12 +586,12 @@ namespace WinDbgKiller
 
         private void handleSymbolChange(object sender, SymbolStateEventArgs e)
         {
-
+            
         }
 
         private void handleSystemError(object sender, SystemErrorEventArgs e)
         {
-
+            
         }
 
         #endregion

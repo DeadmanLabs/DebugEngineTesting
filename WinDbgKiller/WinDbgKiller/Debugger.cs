@@ -286,14 +286,16 @@ namespace WinDbgKiller
         private BlockingCollection<Action> _actionQueue = new BlockingCollection<Action>();
         private Thread _executorThread;
         private bool disposing = false;
+        private bool breakOnException;
         private int processId { get; set; }
 
-        public Debugger()
+        public Debugger(bool breakOnExceptions = false)
         {
             _executorThread = new Thread(ExecutorLoop);
             _executorThread.Start();
             callbacks = new Dictionary<IDebugBreakpoint, Action<IDebugBreakpoint>>();
             guardedPages = new Dictionary<ulong, uint>();
+            this.breakOnException = breakOnExceptions;
             
             EnqueueAction(() =>
             {
@@ -638,6 +640,10 @@ namespace WinDbgKiller
                 if (hr >= 0)
                 {
                     _symbolDbg = new SymbolDebugger(proc);
+                    if (this.breakOnException)
+                    {
+                        
+                    }
                 }
             });
             return await tcs.Task;
@@ -1075,7 +1081,7 @@ namespace WinDbgKiller
                     MessageBox.Show("Failed to set breakpoint offset!");
                     tcs.SetResult(breakpoint);
                 }
-                hr = breakpoint.SetDataParameters(4, DEBUG_BREAKPOINT_ACCESS_TYPE.READ);
+                hr = breakpoint.SetDataParameters(1, DEBUG_BREAKPOINT_ACCESS_TYPE.READ);
                 hr = breakpoint.SetFlags(DEBUG_BREAKPOINT_FLAG.ENABLED);
                 if (hr != 0)
                 {
@@ -1114,6 +1120,27 @@ namespace WinDbgKiller
         public IntPtr PtrToNativeUnsafe(ulong address)
         {
             return unchecked((IntPtr)(long)address);
+        }
+
+        public async Task<bool> SetExceptionBreakStatus(bool breakOnException)
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            EnqueueAction(() =>
+            {
+                DEBUG_EXCEPTION_FILTER_PARAMETERS[] parameters;
+                if (breakOnException)
+                {
+                    parameters = new DEBUG_EXCEPTION_FILTER_PARAMETERS[1];
+                    parameters[0].ExecutionOption = DEBUG_FILTER_EXEC_OPTION.BREAK;
+                    parameters[0].ExceptionCode = 0xC0000005;
+                }
+                else
+                {
+                    parameters = new DEBUG_EXCEPTION_FILTER_PARAMETERS[0];
+                }
+                _control.SetExceptionFilterParameters(1, parameters);
+            });
+            return await tcs.Task;
         }
 
         public uint SetMemoryGuard(ulong address, uint size, bool useUnsafe = false, int processId = -1)
@@ -1567,61 +1594,88 @@ namespace WinDbgKiller
             return await tcs.Task;
         }
 
-
-        public struct ThreadDetails
+        public async Task<List<ThreadDetails>> listThreads()
         {
-            public uint ThreadId { get; set; }
-            public ulong EntryPoint { get; set; }
-            public string Status { get; set; }
-            public uint LastError { get; set; }
-        }
-
-        public object[] GetThreads()
-        {
-            uint originalThreadId;
-            int hr = _sysObjects.GetCurrentThreadId(out originalThreadId);
-            if (hr != 0)
+            var tcs = new TaskCompletionSource<List<ThreadDetails>>();
+            EnqueueAction(async () =>
             {
-                return new object[0];
-            }
-            List<object> threads = new List<object>();
-            uint numThreads;
-            hr = _sysObjects.GetNumberThreads(out numThreads);
-            if (hr != 0)
-            {
-                return threads.ToArray();
-            }
-            uint[] threadIds = new uint[numThreads];
-            uint[] engineThreadIds = new uint[numThreads];
-            hr = _sysObjects.GetThreadIdsByIndex(0, numThreads, engineThreadIds, threadIds);
-            if (hr != 0)
-            {
-                return threads.ToArray();
-            }
-            for (uint i = 0; i < numThreads; i++)
-            {
-                uint threadId = threadIds[i];
-                uint engineThreadId = engineThreadIds[i];
-
-                hr = _sysObjects.SetCurrentThreadId(engineThreadId);
+                List<ThreadDetails> threads = new List<ThreadDetails>();
+                uint originalThreadId;
+                int hr = _sysObjects.GetCurrentThreadId(out originalThreadId);
                 if (hr != 0)
                 {
-                    //Failure
-                    continue;
+                    //MessageBox.Show("Failed to get current thread id!");
+                    tcs.SetResult(threads);
+                    return;
                 }
-                ulong entryPoint;
-                string status = "Unknown";
-                DEBUG_THREAD_BASIC_INFORMATION basicInfo;
-
-                //Below is where we construct the return
-                var threadInfo = new
+                uint numThreads;
+                hr = _sysObjects.GetNumberThreads(out numThreads);
+                if (hr != 0)
                 {
-                    ThreadId = threadId,
-                    EngineThreadId = engineThreadId,
-                };
-                threads.Add(threadInfo);
-            }
-            return threads.ToArray();
+                    //MessageBox.Show("Failed to get the number of threads!");
+                    tcs.SetResult(threads);
+                    return;
+                }
+                uint[] threadIds = new uint[numThreads];
+                uint[] engineThreadIds = new uint[numThreads];
+                hr = _sysObjects.GetThreadIdsByIndex(0, numThreads, engineThreadIds, threadIds);
+                if (hr != 0)
+                {
+                    //MessageBox.Show("Failed to get thread ids!");
+                    tcs.SetResult(threads);
+                    return;
+                }
+                for (uint i = 0; i < numThreads; i++)
+                {
+                    uint threadId = threadIds[i];
+                    uint engineThreadId = engineThreadIds[i];
+
+                    hr = _sysObjects.SetCurrentThreadId(threadId);
+                    if (hr != 0)
+                    {
+                        //MessageBox.Show("Failed to set current thread id!");
+                        //Failure
+                        continue;
+                    }
+                    ulong entryPoint;
+                    string status = "Unknown";
+                    DEBUG_THREAD_BASIC_INFORMATION basicInfo;
+                    IntPtr threadContext = IntPtr.Zero;
+                    uint contextSize = 0;
+                    hr = _advanced.GetThreadContext(threadContext, contextSize);
+                    if (hr != 0)
+                    {
+                        MessageBox.Show("Failed to get thread context");
+                        continue;
+                    }
+                    ulong offset, handle, tebOffset;
+                    uint Id, SysId;
+                    _sysObjects.GetCurrentThreadDataOffset(out offset);
+                    _sysObjects.GetCurrentThreadHandle(out handle);
+                    _sysObjects.GetCurrentThreadId(out Id);
+                    _sysObjects.GetCurrentThreadSystemId(out SysId);
+                    _sysObjects.GetCurrentThreadTeb(out tebOffset);
+                    //Below is where we construct the return
+                    var threadInfo = new ThreadDetails();
+                    threadInfo.ThreadId = Id;
+                    threadInfo.SysId = SysId;
+                    threadInfo.DataOffset = offset;
+                    threadInfo.Active = (Id == originalThreadId);
+
+                    threadInfo.LastError = 0;
+                    threadInfo.Status = "";
+                    threadInfo.EntryPoint = 0;
+                    threads.Add(threadInfo);
+                }
+                tcs.SetResult(threads);
+                hr = _sysObjects.SetCurrentThreadId(originalThreadId);
+                if (hr != 0)
+                {
+                    //MessageBox.Show("Failed to return to original thread, this can cause unexpected behaviour!", "Failed to return to original thread!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            });
+            return await tcs.Task;
         }
 
         public async Task<List<BreakpointInfo>> GetCurrentBreakpointsInfo()
@@ -1651,6 +1705,8 @@ namespace WinDbgKiller
                         hr = breakpoint.GetOffsetExpression(expression, expression.Capacity, out expressionSize);
                         info.Expression = $"{expression.ToString()}";
                         string opcode = await GetOpcodeAtAddress(offset);
+                        info.Instruction = opcode;
+                        info.Source = breakpoint;
                         breakpoints.Add(info);
                     }
                 }
@@ -1681,6 +1737,17 @@ namespace WinDbgKiller
         }
 
         #endregion
+    }
+
+    public struct ThreadDetails
+    {
+        public uint ThreadId { get; set; }
+        public uint SysId { get; set; }
+        public ulong EntryPoint { get; set; }
+        public ulong DataOffset { get; set; }
+        public string Status { get; set; }
+        public uint LastError { get; set; }
+        public bool Active { get; set; }
     }
 
     public class SymbolDebugger : IDisposable
@@ -1724,6 +1791,8 @@ namespace WinDbgKiller
         public bool Enabled { get; set; }
         public string Expression { get; set; }
         public string Instruction { get; set; }
+
+        public IDebugBreakpoint Source { get; set; }
     }
 
     #region Args

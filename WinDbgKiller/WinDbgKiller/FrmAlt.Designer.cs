@@ -59,6 +59,8 @@
             this.groupModules = new System.Windows.Forms.GroupBox();
             this.treeModules = new System.Windows.Forms.TreeView();
             this.groupStatus = new System.Windows.Forms.GroupBox();
+            this.btnBreak = new System.Windows.Forms.Button();
+            this.btnContinue = new System.Windows.Forms.Button();
             this.listEngineFlags = new System.Windows.Forms.ListView();
             this.columnKey = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.columnValue = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
@@ -67,8 +69,6 @@
             this.label4 = new System.Windows.Forms.Label();
             this.label3 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
-            this.btnContinue = new System.Windows.Forms.Button();
-            this.btnBreak = new System.Windows.Forms.Button();
             this.groupDebuggee.SuspendLayout();
             this.groupRegisters.SuspendLayout();
             this.groupThreads.SuspendLayout();
@@ -96,9 +96,9 @@
             this.groupDebuggee.Controls.Add(this.comboProcesses);
             this.groupDebuggee.Controls.Add(this.label1);
             this.groupDebuggee.Location = new System.Drawing.Point(16, 15);
-            this.groupDebuggee.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupDebuggee.Margin = new System.Windows.Forms.Padding(4);
             this.groupDebuggee.Name = "groupDebuggee";
-            this.groupDebuggee.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupDebuggee.Padding = new System.Windows.Forms.Padding(4);
             this.groupDebuggee.Size = new System.Drawing.Size(380, 118);
             this.groupDebuggee.TabIndex = 1;
             this.groupDebuggee.TabStop = false;
@@ -107,7 +107,7 @@
             // btnDetach
             // 
             this.btnDetach.Location = new System.Drawing.Point(12, 82);
-            this.btnDetach.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnDetach.Margin = new System.Windows.Forms.Padding(4);
             this.btnDetach.Name = "btnDetach";
             this.btnDetach.Size = new System.Drawing.Size(360, 28);
             this.btnDetach.TabIndex = 5;
@@ -118,7 +118,7 @@
             // btnAttach
             // 
             this.btnAttach.Location = new System.Drawing.Point(301, 14);
-            this.btnAttach.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnAttach.Margin = new System.Windows.Forms.Padding(4);
             this.btnAttach.Name = "btnAttach";
             this.btnAttach.Size = new System.Drawing.Size(71, 28);
             this.btnAttach.TabIndex = 4;
@@ -128,7 +128,7 @@
             // btnLoadFile
             // 
             this.btnLoadFile.Location = new System.Drawing.Point(12, 49);
-            this.btnLoadFile.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.btnLoadFile.Margin = new System.Windows.Forms.Padding(4);
             this.btnLoadFile.Name = "btnLoadFile";
             this.btnLoadFile.Size = new System.Drawing.Size(360, 28);
             this.btnLoadFile.TabIndex = 3;
@@ -140,7 +140,7 @@
             // 
             this.comboProcesses.FormattingEnabled = true;
             this.comboProcesses.Location = new System.Drawing.Point(75, 16);
-            this.comboProcesses.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.comboProcesses.Margin = new System.Windows.Forms.Padding(4);
             this.comboProcesses.Name = "comboProcesses";
             this.comboProcesses.Size = new System.Drawing.Size(217, 24);
             this.comboProcesses.TabIndex = 1;
@@ -150,9 +150,9 @@
             // 
             this.groupRegisters.Controls.Add(this.listRegisters);
             this.groupRegisters.Location = new System.Drawing.Point(16, 140);
-            this.groupRegisters.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupRegisters.Margin = new System.Windows.Forms.Padding(4);
             this.groupRegisters.Name = "groupRegisters";
-            this.groupRegisters.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupRegisters.Padding = new System.Windows.Forms.Padding(4);
             this.groupRegisters.Size = new System.Drawing.Size(380, 337);
             this.groupRegisters.TabIndex = 2;
             this.groupRegisters.TabStop = false;
@@ -165,7 +165,7 @@
             this.columnVal});
             this.listRegisters.HideSelection = false;
             this.listRegisters.Location = new System.Drawing.Point(12, 23);
-            this.listRegisters.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.listRegisters.Margin = new System.Windows.Forms.Padding(4);
             this.listRegisters.Name = "listRegisters";
             this.listRegisters.Size = new System.Drawing.Size(359, 306);
             this.listRegisters.TabIndex = 0;
@@ -186,9 +186,9 @@
             // 
             this.groupThreads.Controls.Add(this.listThreads);
             this.groupThreads.Location = new System.Drawing.Point(1217, 272);
-            this.groupThreads.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupThreads.Margin = new System.Windows.Forms.Padding(4);
             this.groupThreads.Name = "groupThreads";
-            this.groupThreads.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupThreads.Padding = new System.Windows.Forms.Padding(4);
             this.groupThreads.Size = new System.Drawing.Size(515, 206);
             this.groupThreads.TabIndex = 2;
             this.groupThreads.TabStop = false;
@@ -197,13 +197,13 @@
             // listThreads
             // 
             this.listThreads.Columns.AddRange(new System.Windows.Forms.ColumnHeader[] {
-            this.columnSelected,
             this.columnID,
+            this.columnSelected,
             this.columnEntry,
             this.columnLastError});
             this.listThreads.HideSelection = false;
             this.listThreads.Location = new System.Drawing.Point(9, 25);
-            this.listThreads.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.listThreads.Margin = new System.Windows.Forms.Padding(4);
             this.listThreads.Name = "listThreads";
             this.listThreads.Size = new System.Drawing.Size(496, 173);
             this.listThreads.TabIndex = 0;
@@ -234,9 +234,9 @@
             // 
             this.groupBreakpoints.Controls.Add(this.listBreakpoints);
             this.groupBreakpoints.Location = new System.Drawing.Point(827, 485);
-            this.groupBreakpoints.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBreakpoints.Margin = new System.Windows.Forms.Padding(4);
             this.groupBreakpoints.Name = "groupBreakpoints";
-            this.groupBreakpoints.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupBreakpoints.Padding = new System.Windows.Forms.Padding(4);
             this.groupBreakpoints.Size = new System.Drawing.Size(905, 242);
             this.groupBreakpoints.TabIndex = 2;
             this.groupBreakpoints.TabStop = false;
@@ -252,7 +252,7 @@
             this.columnComment});
             this.listBreakpoints.HideSelection = false;
             this.listBreakpoints.Location = new System.Drawing.Point(9, 25);
-            this.listBreakpoints.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.listBreakpoints.Margin = new System.Windows.Forms.Padding(4);
             this.listBreakpoints.Name = "listBreakpoints";
             this.listBreakpoints.Size = new System.Drawing.Size(887, 210);
             this.listBreakpoints.TabIndex = 0;
@@ -287,7 +287,7 @@
             // txtOutput
             // 
             this.txtOutput.Location = new System.Drawing.Point(16, 485);
-            this.txtOutput.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.txtOutput.Margin = new System.Windows.Forms.Padding(4);
             this.txtOutput.Multiline = true;
             this.txtOutput.Name = "txtOutput";
             this.txtOutput.ReadOnly = true;
@@ -298,9 +298,9 @@
             // 
             this.groupStack.Controls.Add(this.listStack);
             this.groupStack.Location = new System.Drawing.Point(1217, 15);
-            this.groupStack.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupStack.Margin = new System.Windows.Forms.Padding(4);
             this.groupStack.Name = "groupStack";
-            this.groupStack.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupStack.Padding = new System.Windows.Forms.Padding(4);
             this.groupStack.Size = new System.Drawing.Size(515, 250);
             this.groupStack.TabIndex = 3;
             this.groupStack.TabStop = false;
@@ -313,7 +313,7 @@
             this.columnParameters});
             this.listStack.HideSelection = false;
             this.listStack.Location = new System.Drawing.Point(8, 23);
-            this.listStack.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.listStack.Margin = new System.Windows.Forms.Padding(4);
             this.listStack.Name = "listStack";
             this.listStack.Size = new System.Drawing.Size(497, 218);
             this.listStack.TabIndex = 0;
@@ -334,9 +334,9 @@
             // 
             this.groupModules.Controls.Add(this.treeModules);
             this.groupModules.Location = new System.Drawing.Point(405, 15);
-            this.groupModules.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupModules.Margin = new System.Windows.Forms.Padding(4);
             this.groupModules.Name = "groupModules";
-            this.groupModules.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupModules.Padding = new System.Windows.Forms.Padding(4);
             this.groupModules.Size = new System.Drawing.Size(413, 463);
             this.groupModules.TabIndex = 4;
             this.groupModules.TabStop = false;
@@ -346,7 +346,7 @@
             // 
             this.treeModules.CheckBoxes = true;
             this.treeModules.Location = new System.Drawing.Point(9, 16);
-            this.treeModules.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.treeModules.Margin = new System.Windows.Forms.Padding(4);
             this.treeModules.Name = "treeModules";
             this.treeModules.Size = new System.Drawing.Size(395, 438);
             this.treeModules.TabIndex = 0;
@@ -362,13 +362,33 @@
             this.groupStatus.Controls.Add(this.label3);
             this.groupStatus.Controls.Add(this.label2);
             this.groupStatus.Location = new System.Drawing.Point(827, 15);
-            this.groupStatus.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupStatus.Margin = new System.Windows.Forms.Padding(4);
             this.groupStatus.Name = "groupStatus";
-            this.groupStatus.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.groupStatus.Padding = new System.Windows.Forms.Padding(4);
             this.groupStatus.Size = new System.Drawing.Size(383, 463);
             this.groupStatus.TabIndex = 5;
             this.groupStatus.TabStop = false;
             this.groupStatus.Text = "Status";
+            // 
+            // btnBreak
+            // 
+            this.btnBreak.Location = new System.Drawing.Point(199, 429);
+            this.btnBreak.Name = "btnBreak";
+            this.btnBreak.Size = new System.Drawing.Size(174, 27);
+            this.btnBreak.TabIndex = 7;
+            this.btnBreak.Text = "Break";
+            this.btnBreak.UseVisualStyleBackColor = true;
+            this.btnBreak.Click += new System.EventHandler(this.btnBreak_Click);
+            // 
+            // btnContinue
+            // 
+            this.btnContinue.Location = new System.Drawing.Point(7, 429);
+            this.btnContinue.Name = "btnContinue";
+            this.btnContinue.Size = new System.Drawing.Size(174, 27);
+            this.btnContinue.TabIndex = 6;
+            this.btnContinue.Text = "Continue";
+            this.btnContinue.UseVisualStyleBackColor = true;
+            this.btnContinue.Click += new System.EventHandler(this.btnContinue_Click);
             // 
             // listEngineFlags
             // 
@@ -377,7 +397,7 @@
             this.columnValue});
             this.listEngineFlags.HideSelection = false;
             this.listEngineFlags.Location = new System.Drawing.Point(13, 102);
-            this.listEngineFlags.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.listEngineFlags.Margin = new System.Windows.Forms.Padding(4);
             this.listEngineFlags.Name = "listEngineFlags";
             this.listEngineFlags.Size = new System.Drawing.Size(360, 320);
             this.listEngineFlags.TabIndex = 5;
@@ -444,26 +464,6 @@
             this.label2.TabIndex = 0;
             this.label2.Text = "Status: ";
             // 
-            // btnContinue
-            // 
-            this.btnContinue.Location = new System.Drawing.Point(7, 429);
-            this.btnContinue.Name = "btnContinue";
-            this.btnContinue.Size = new System.Drawing.Size(174, 27);
-            this.btnContinue.TabIndex = 6;
-            this.btnContinue.Text = "Continue";
-            this.btnContinue.UseVisualStyleBackColor = true;
-            this.btnContinue.Click += new System.EventHandler(this.btnContinue_Click);
-            // 
-            // btnBreak
-            // 
-            this.btnBreak.Location = new System.Drawing.Point(199, 429);
-            this.btnBreak.Name = "btnBreak";
-            this.btnBreak.Size = new System.Drawing.Size(174, 27);
-            this.btnBreak.TabIndex = 7;
-            this.btnBreak.Text = "Break";
-            this.btnBreak.UseVisualStyleBackColor = true;
-            this.btnBreak.Click += new System.EventHandler(this.btnBreak_Click);
-            // 
             // FrmAlt
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
@@ -477,7 +477,7 @@
             this.Controls.Add(this.groupThreads);
             this.Controls.Add(this.groupRegisters);
             this.Controls.Add(this.groupDebuggee);
-            this.Margin = new System.Windows.Forms.Padding(4, 4, 4, 4);
+            this.Margin = new System.Windows.Forms.Padding(4);
             this.Name = "FrmAlt";
             this.Text = "DeadDebug";
             this.Load += new System.EventHandler(this.FrmAlt_Load);
