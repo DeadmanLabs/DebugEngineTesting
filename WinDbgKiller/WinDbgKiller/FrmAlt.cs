@@ -84,12 +84,15 @@ namespace WinDbgKiller
             //Refresh Stats
             if (_attached && _engine != null)
             {
+                (int Result, DEBUG_STATUS Status) = await _engine.GetExecutionStatus();
+                bool running = !(Status == DEBUG_STATUS.BREAK);
+                if (running) { await _engine.Break(true); }
                 Dictionary<DbgEngRegister, ulong> registers = await _engine.listRegisters();
                 listRegisters.SafeOperation(() =>
                 {
                     foreach (KeyValuePair<DbgEngRegister, ulong> register in registers)
                     {
-                        listRegisters.UpdateOrAdd(register.Key.ToString(), $"0x{register.Value.ToString("X")}");
+                        listRegisters.UpdateOrAdd(register.Key.ToString(), $"0x{register.Value:X8}");
                     }
                 });
                 List<DEBUG_STACK_FRAME> stack = await _engine.listStack();
@@ -114,7 +117,7 @@ namespace WinDbgKiller
                     {
                         foreach (ThreadDetails thread in threads)
                         {
-                            listThreads.UpdateOrAdd($"{thread.ThreadId:X}", new string[] { thread.Active.ToString(), "", "" });
+                            listThreads.UpdateOrAdd($"{thread.ThreadId:X}", new string[] { thread.Active.ToString(), $"0x{thread.EntryPoint:X8}", "" });
                         }
                     }
                 });
@@ -130,6 +133,7 @@ namespace WinDbgKiller
                         }
                     }
                 });
+                if (running) { await _engine.SetExecutionStatus(Status); }
             }
             else
             {
@@ -368,11 +372,11 @@ namespace WinDbgKiller
                 $"Module Name: {e.ModuleName}{Environment.NewLine}" +
                 $"Module Size: {e.ModuleSize}{Environment.NewLine}" +
                 $"TimeDate Stamp: {e.TimeDateStamp}{Environment.NewLine}", "Importted!"); */
-            Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)> functions = await _engine.GetModuleFuncs(e.BaseOffset);
+            Dictionary<ulong, string> functions = await _engine.GetModuleFuncs(e.BaseOffset);
             TreeNode node = new TreeNode(e.ModuleName);
-            foreach (KeyValuePair<ulong, (string, DEBUG_SYMBOL_ENTRY)> function in functions)
+            foreach (KeyValuePair<ulong, string> function in functions)
             {
-                node.Nodes.Add(function.Value.Item1);
+                node.Nodes.Add(function.Value);
             }
             treeModules.SafeOperation(() =>
             {

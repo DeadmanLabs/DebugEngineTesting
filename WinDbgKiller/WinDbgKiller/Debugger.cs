@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Net.Sockets;
 using System.Net;
+using System.Security.Policy;
 
 namespace WinDbgKiller
 {
@@ -148,25 +149,49 @@ namespace WinDbgKiller
         }
     }
 
+    public class Patches
+    {
+        IDebugSymbols5 _symbols;
+        public Patches(Microsoft.Diagnostics.Runtime.Interop.IDebugSymbols5 syms)
+        {
+            _symbols = (IDebugSymbols5)syms;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct DEBUG_MODULE_AND_ID
+        {
+            public ulong ModuleBase;
+            public ulong Id;
+        }
+
+        [ComImport, Guid("c65fa83e-1e69-475e-8e0e-b5d79e9cc17e"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        public interface IDebugSymbols5
+        {
+            [PreserveSig]
+            int GetSymbolEntryString(ref DEBUG_MODULE_AND_ID symbolEntry, uint Which, StringBuilder buf, int BufferSize, out uint NameSize);
+        }
+
+        public string GetSymbolEntryStringPatch(Microsoft.Diagnostics.Runtime.Interop.DEBUG_MODULE_AND_ID symEnt)
+        {
+            DEBUG_MODULE_AND_ID symbolEntry = new DEBUG_MODULE_AND_ID();
+            symbolEntry.ModuleBase = symEnt.ModuleBase;
+            symbolEntry.Id = symEnt.Id;
+            StringBuilder buffer = new StringBuilder(1024);
+            uint nameSize;
+            int hr = _symbols.GetSymbolEntryString(
+                ref symbolEntry,
+                0,
+                buffer,
+                buffer.Capacity,
+                out nameSize);
+            return buffer.ToString();
+        }
+    }
+
     public class Debugger : IDebugOutputCallbacks, IDebugEventCallbacksWide, IDisposable
     {
         [DllImport("dbgeng.dll")]
         internal static extern int DebugCreate(ref Guid InterfaceId, [MarshalAs(UnmanagedType.IUnknown)] out object Interface);
-
-        // P/Invoke signature for GetSymbolEntryString.
-        [DllImport("dbgeng.dll", EntryPoint = "IDebugSymbol5", ExactSpelling = true, PreserveSig = true, CharSet = CharSet.Ansi)]
-        private static extern int GetSymbolEntryString(
-            [In] ref DEBUG_MODULE_AND_ID Id,
-            [In] uint Which,
-            [Out] StringBuilder Buffer,
-            [In] int BufferSize,
-            out uint StringSize
-        );
-        [DllImport("dbgeng.dll", EntryPoint = "IDebugSymbol5", ExactSpelling = true, PreserveSig = true)]
-        private static extern int GetSymbolEntryInformation(
-            [In] ref DEBUG_MODULE_AND_ID Id,
-            [Out] out DEBUG_SYMBOL_ENTRY Entry
-        );
 
         static List<DbgEngRegister> registersAsList = new List<DbgEngRegister>
         {
@@ -249,6 +274,7 @@ namespace WinDbgKiller
         public IDebugSymbols5 _symbols;
         public IDebugSystemObjects3 _sysObjects;
         public SymbolDebugger _symbolDbg;
+        public Patches _patches;
 
         bool _outputText;
         public void SetOutputText(bool output)
@@ -321,6 +347,7 @@ namespace WinDbgKiller
                 _client.SetEventCallbacksWide(this);
                 _control.AddEngineOptions(DEBUG_ENGOPT.INITIAL_BREAK);
                 _symbols.SetSymbolPath("srv*http://msdl.microsoft.com/download/symbols");
+                _patches = new Patches(_symbols);
             });
         }
 
@@ -497,74 +524,70 @@ namespace WinDbgKiller
             return await tcs.Task;
         }
 
-        public async Task<Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)>> GetModuleFuncs(ulong baseOffset)
+        public async Task<string> getModuleNameFromOffset(ulong baseOffset)
         {
-            var tcs = new TaskCompletionSource<Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)>>();
+            var tcs = new TaskCompletionSource<string>();
             EnqueueAction(() =>
             {
-                Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)> funcs = new Dictionary<ulong, (string, DEBUG_SYMBOL_ENTRY)>();
-                uint numSymbols;
-                int hr = _symbols.GetSymbolEntriesByOffset(
-                    baseOffset,
-                    0,
-                    null,
-                    null,
-                    0,
-                    out numSymbols);
-                if (hr != 0 || numSymbols == 0)
-                {
-                    //MessageBox.Show("Failed to get number of symbols", "Error!");
-                    tcs.SetResult(funcs);
-                    return;
-                }
-                /*
-                Microsoft.Diagnostics.Runtime.Interop.DEBUG_MODULE_AND_ID[] ids = new Microsoft.Diagnostics.Runtime.Interop.DEBUG_MODULE_AND_ID[numSymbols];
-                ulong[] displacements = new ulong[numSymbols];
-                hr = _symbols.GetSymbolEntriesByOffset(
-                    baseOffset,
-                    0,
-                    ids,
-                    displacements,
-                    numSymbols,
-                    out _);
+                StringBuilder moduleName = new StringBuilder(512);
+                uint Index, nameSize;
+                ulong Base;
+                int hr = _symbols.GetModuleByOffset(baseOffset, 0, out Index, out Base);
                 if (hr != 0)
                 {
-                    MessageBox.Show("Failed to get symbols", "Error!");
-                    tcs.SetResult(funcs);
+                    tcs.SetResult("");
                     return;
                 }
-                for (int i = 0; i < numSymbols; i++)
+                hr = _symbols.GetModuleNameString(DEBUG_MODNAME.MODULE, Index, 0, moduleName, (uint)moduleName.Capacity, out nameSize);
+                if (hr != 0)
                 {
-                    DEBUG_MODULE_AND_ID id = ids[i];
-                    MessageBox.Show($"Module Base: {ids[i].ModuleBase}{Environment.NewLine}ID: {ids[i].Id}", "DEBUG_MODULE_AND_ID");
-                    try
-                    {
-                        StringBuilder builder = new StringBuilder(512);
-                        uint builderSize;
-                        hr = _symbols.GetSymbolEntryString(id, 0, builder, builder.Capacity, out builderSize);
-                        if (hr != 0)
-                        {
-                            MessageBox.Show("Failed to build symbol name", "Error!");
-                            tcs.SetResult(funcs);
-                            return;
-                        }
-                        DEBUG_SYMBOL_ENTRY entry;
-                        hr = _symbols.GetSymbolEntryInformation(id, out entry);
-                        if (hr != 0)
-                        {
-                            MessageBox.Show("Failed to get symbol entry info", "Error!");
-                            tcs.SetResult(funcs);
-                            return;
-                        }
-                        funcs.Add(displacements[i], (builder.ToString(), entry));
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"Failed to grab info: {ex}", "Failed to grab module info!", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    }
+                    tcs.SetResult("");
+                    return;
                 }
-                */
-                tcs.SetResult(funcs);
+                tcs.SetResult(moduleName.ToString());
+            });
+            return await tcs.Task;
+        }
+
+        public async Task<Dictionary<ulong, string>> GetModuleFuncs(ulong baseOffset)
+        {
+            var tcs = new TaskCompletionSource<Dictionary<ulong, string>>();
+            EnqueueAction(() =>
+            {
+                Dictionary<ulong, string> symbols = new Dictionary<ulong, string>();
+                StringBuilder moduleName = new StringBuilder(1024);
+                uint Index, nameSize;
+                ulong Base;
+                int hr = _symbols.GetModuleByOffset(baseOffset, 0, out Index, out Base);
+                if (hr != 0)
+                {
+                    tcs.SetResult(symbols);
+                    return;
+                }
+                hr = _symbols.GetModuleNameString(DEBUG_MODNAME.MODULE, Index, 0, moduleName, (uint)moduleName.Capacity, out nameSize);
+                if (hr != 0)
+                {
+                    tcs.SetResult(symbols);
+                    return;
+                }
+                ulong handle, symbolOffset;
+                uint matchSize;
+                StringBuilder symbolName = new StringBuilder(1024);
+                hr = _symbols.StartSymbolMatch($"{moduleName.ToString()}!*", out handle);
+                if (hr == 0)
+                {
+                    while(_symbols.GetNextSymbolMatch(handle, symbolName, symbolName.Capacity, out matchSize, out symbolOffset) == 0)
+                    {
+                        if (!symbols.Keys.Contains(symbolOffset) && symbolName.ToString() != "")
+                        {
+                            //MessageBox.Show($"{symbolOffset} -> {symbolName.ToString()}");
+                            symbols.Add(symbolOffset, symbolName.ToString().Split('!')[1]);
+                            symbolName.Clear();
+                        }
+                    }
+                    _symbols.EndSymbolMatch(handle);
+                }
+                tcs.SetResult(symbols);
             });
             return await tcs.Task;
         }
@@ -1597,14 +1620,15 @@ namespace WinDbgKiller
         public async Task<List<ThreadDetails>> listThreads()
         {
             var tcs = new TaskCompletionSource<List<ThreadDetails>>();
-            EnqueueAction(async () =>
+            /*
+            EnqueueAction(() =>
             {
                 List<ThreadDetails> threads = new List<ThreadDetails>();
                 uint originalThreadId;
                 int hr = _sysObjects.GetCurrentThreadId(out originalThreadId);
                 if (hr != 0)
                 {
-                    //MessageBox.Show("Failed to get current thread id!");
+                    MessageBox.Show("Failed to get current thread id!");
                     tcs.SetResult(threads);
                     return;
                 }
@@ -1612,16 +1636,17 @@ namespace WinDbgKiller
                 hr = _sysObjects.GetNumberThreads(out numThreads);
                 if (hr != 0)
                 {
-                    //MessageBox.Show("Failed to get the number of threads!");
+                    MessageBox.Show("Failed to get the number of threads!");
                     tcs.SetResult(threads);
                     return;
                 }
+                MessageBox.Show($"Thread Count: {numThreads}");
                 uint[] threadIds = new uint[numThreads];
                 uint[] engineThreadIds = new uint[numThreads];
                 hr = _sysObjects.GetThreadIdsByIndex(0, numThreads, engineThreadIds, threadIds);
                 if (hr != 0)
                 {
-                    //MessageBox.Show("Failed to get thread ids!");
+                    MessageBox.Show("Failed to get thread ids!");
                     tcs.SetResult(threads);
                     return;
                 }
@@ -1633,7 +1658,7 @@ namespace WinDbgKiller
                     hr = _sysObjects.SetCurrentThreadId(threadId);
                     if (hr != 0)
                     {
-                        //MessageBox.Show("Failed to set current thread id!");
+                        MessageBox.Show("Failed to set current thread id!");
                         //Failure
                         continue;
                     }
@@ -1674,6 +1699,49 @@ namespace WinDbgKiller
                     //MessageBox.Show("Failed to return to original thread, this can cause unexpected behaviour!", "Failed to return to original thread!", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
+            });
+            */
+
+            EnqueueAction(() =>
+            {
+                List<ThreadDetails> threads = new List<ThreadDetails>();
+                uint totalThreads, currentThread;
+                int hr = _sysObjects.GetNumberThreads(out totalThreads);
+                uint[] threadIds = new uint[totalThreads];
+                uint[] sysThreadIds = new uint[totalThreads];
+                hr = _sysObjects.GetThreadIdsByIndex(0, totalThreads, threadIds, sysThreadIds);
+                hr = _sysObjects.GetCurrentThreadId(out currentThread);
+                for (uint i = 0; i < totalThreads; i++)
+                {
+                    ThreadDetails details = new ThreadDetails();
+                    //hr = _control.SetInterrupt(0);
+                    //_control.WaitForEvent(DEBUG_WAIT.DEFAULT, uint.MaxValue);
+                    hr = _sysObjects.SetCurrentThreadId(threadIds[i]);
+                    if (hr == 0)
+                    {
+                        uint Id, sysId;
+                        ulong dataOffset;
+                        _sysObjects.GetCurrentThreadId(out Id);
+                        _sysObjects.GetCurrentThreadSystemId(out sysId);
+                        _sysObjects.GetCurrentThreadDataOffset(out dataOffset);
+                        details.DataOffset = dataOffset;
+                        details.SysId = sysId;
+                        details.ThreadId = Id;
+                        details.Active = (Id == currentThread);
+                        ulong handle;
+                        _sysObjects.GetCurrentThreadHandle(out handle);
+                        IntPtr context = Marshal.AllocHGlobal(4096);
+                        hr = _advanced.GetThreadContext(context, 4096);
+                        details.EntryPoint = 0;
+                        threads.Add(details);
+                    }
+                    else
+                    {
+                        MessageBox.Show($"Failed to switch thread!");
+                    }
+                }
+                hr = _sysObjects.SetCurrentThreadId(currentThread);
+                tcs.SetResult(threads);
             });
             return await tcs.Task;
         }
@@ -1759,9 +1827,33 @@ namespace WinDbgKiller
         [DllImport("DbgHelp.dll", SetLastError = true)]
         private static extern bool SymCleanup(IntPtr hProcess);
         private delegate bool SymEnumImportsCallback(string SymbolName, IntPtr SymbolAddress, IntPtr UserContext);
+        private delegate bool SymEnumSymbolsProc(ref SymbolInfo pSymInfo, uint SymbolSize, IntPtr UserContext);
+        [DllImport("DbgHelp.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern bool SymEnumSymbols(IntPtr hProcess, ulong baseAddress, string Mask, SymEnumSymbolsProc Callback, IntPtr UserContext);
 
         public Process child { get; private set; }
 
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SymbolInfo
+        {
+            public uint SizeOfStruct;
+            public uint TypeIndex;
+            public ulong Reserved1;
+            public ulong Reserved2;
+            public uint Index;
+            public uint Size;
+            public ulong ModBase;
+            public uint Flags;
+            public ulong Value;
+            public ulong Address;
+            public uint Register;
+            public uint Scope;
+            public uint Tag;
+            public uint NameLen;
+            public uint MaxNameLen;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 1024)]
+            public string Name;
+        }
 
         public SymbolDebugger(Process proc)
         {
@@ -1778,9 +1870,35 @@ namespace WinDbgKiller
             return true;
         }
 
+        public Dictionary<ulong, SymbolInfo> GetSymbolsDictionary(ulong baseOffset)
+        {
+            Dictionary<ulong, SymbolInfo> symbols = new Dictionary<ulong, SymbolInfo>();
+            SymEnumSymbolsProc callback = (ref SymbolInfo symInfo, uint symSize, IntPtr userContext) =>
+            {
+                symbols.Add(symInfo.Address, symInfo);
+                return true;
+            };
+            if (!SymEnumSymbols(child.Handle, baseOffset, null, callback, IntPtr.Zero))
+            {
+                int error = Marshal.GetLastWin32Error();
+                throw new Exception($"SymEnumSymbols failed with error {error}");
+            }
+            return symbols;
+        }
+
+        private static bool SymbolCallback(ref SymbolInfo pSymInfo, uint SymbolSize, IntPtr UserContext)
+        {
+            MessageBox.Show($"{pSymInfo.Name}");
+            return true;
+        }
+
         public void Dispose()
         {
-
+            if (!SymCleanup(child.Handle))
+            {
+                int error = Marshal.GetLastWin32Error();
+                throw new Exception($"Failed to cleanup symbols with error {error}");
+            }
         }
     }
 
