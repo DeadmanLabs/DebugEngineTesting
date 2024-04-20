@@ -421,13 +421,13 @@ namespace WinDbgKiller
                         listRegisters.Items.Add(lvi);
                     }
                 }
-                List<DEBUG_STACK_FRAME> stack = await _engine.listStack();
+                Dictionary<DEBUG_STACK_FRAME, string> stack = await _engine.listStack();
                 if (listStack.InvokeRequired)
                 {
-                    listStack.BeginInvoke((MethodInvoker) async delegate
+                    listStack.BeginInvoke((MethodInvoker) delegate
                     {
                         listStack.Items.Clear();
-                        foreach (DEBUG_STACK_FRAME frame in stack)
+                        foreach (KeyValuePair<DEBUG_STACK_FRAME, string> frame in stack)
                         {
                             /*
                             MessageBox.Show(
@@ -441,8 +441,8 @@ namespace WinDbgKiller
                             );
                             */
                             ListViewItem lvi = new ListViewItem();
-                            lvi.Text = await _engine.GetFunctionFromFrame(frame);
-                            lvi.SubItems.Add(frame.Virtual.ToString());
+                            lvi.Text = frame.Value;
+                            lvi.SubItems.Add(frame.Key.Virtual.ToString());
                             listStack.Items.Add(lvi);
                         }
                     });
@@ -450,21 +450,20 @@ namespace WinDbgKiller
                 else
                 {
                     listStack.Items.Clear();
-                    foreach (DEBUG_STACK_FRAME frame in stack)
+                    foreach (KeyValuePair<DEBUG_STACK_FRAME, string> frame in stack)
                     {
                         MessageBox.Show(
-                            $"FrameNumber: {frame.FrameNumber.ToString()}{Environment.NewLine}" +
-                            $"FrameOffset: {frame.FrameOffset.ToString("X")}{Environment.NewLine}" + 
-                            $"FuncTableEntry: {frame.FuncTableEntry.ToString("X")}{Environment.NewLine}" + 
-                            $"InstructionOffset: {frame.InstructionOffset.ToString("X")}{Environment.NewLine}" + 
-                            $"ReturnOffset: {frame.ReturnOffset.ToString("X")}{Environment.NewLine}" + 
-                            $"StackOffset: {frame.StackOffset.ToString("X")}{Environment.NewLine}" + 
-                            $"Virtual: {frame.Virtual.ToString()}{Environment.NewLine}"
+                            $"FrameNumber: {frame.Key.FrameNumber.ToString()}{Environment.NewLine}" +
+                            $"FrameOffset: {frame.Key.FrameOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"FuncTableEntry: {frame.Key.FuncTableEntry.ToString("X")}{Environment.NewLine}" + 
+                            $"InstructionOffset: {frame.Key.InstructionOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"ReturnOffset: {frame.Key.ReturnOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"StackOffset: {frame.Key.StackOffset.ToString("X")}{Environment.NewLine}" + 
+                            $"Virtual: {frame.Key.Virtual.ToString()}{Environment.NewLine}"
                         );
-                        MessageBox.Show(await _engine.GetFunctionFromFrame(frame));
                         ListViewItem lvi = new ListViewItem();
-                        lvi.Text = frame.InstructionOffset.ToString("X");
-                        lvi.SubItems.Add(frame.Virtual.ToString());
+                        lvi.Text = frame.Value;
+                        lvi.SubItems.Add(frame.Key.Virtual.ToString());
                     }
                 }
             }

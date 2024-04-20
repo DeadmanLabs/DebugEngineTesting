@@ -1592,13 +1592,13 @@ namespace WinDbgKiller
             return await tcs.Task;
         }
 
-        public async Task<List<DEBUG_STACK_FRAME>> listStack()
+        public async Task<Dictionary<DEBUG_STACK_FRAME, string>> listStack()
         {
-            var tcs = new TaskCompletionSource<List<DEBUG_STACK_FRAME>>();
-            EnqueueAction(() =>
+            var tcs = new TaskCompletionSource<Dictionary<DEBUG_STACK_FRAME, string>>();
+            EnqueueAction(async () =>
             {
-                List<DEBUG_STACK_FRAME> stack = new List<DEBUG_STACK_FRAME>();
-                int frameSize = 10;
+                Dictionary<DEBUG_STACK_FRAME, string> stack = new Dictionary<DEBUG_STACK_FRAME, string>();
+                int frameSize = 25;
                 DEBUG_STACK_FRAME[] frames = new DEBUG_STACK_FRAME[frameSize];
                 uint framesFilled;
                 int hr = _control.GetStackTrace(0, 0, 0, frames, frameSize, out framesFilled);
@@ -1610,7 +1610,9 @@ namespace WinDbgKiller
                 }
                 for (int i = 0; i < framesFilled; i++)
                 {
-                    stack.Add(frames[i]);
+                    //Grab function name
+                    string functionName = await GetFunctionFromFrame(frames[i]);
+                    stack.Add(frames[i], functionName);
                 }
                 tcs.SetResult(stack);
             });

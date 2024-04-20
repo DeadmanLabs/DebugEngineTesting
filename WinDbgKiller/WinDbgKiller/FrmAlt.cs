@@ -95,17 +95,17 @@ namespace WinDbgKiller
                         listRegisters.UpdateOrAdd(register.Key.ToString(), $"0x{register.Value:X8}");
                     }
                 });
-                List<DEBUG_STACK_FRAME> stack = await _engine.listStack();
-                listStack.SafeOperation(async () =>
+                Dictionary<DEBUG_STACK_FRAME, string> stack = await _engine.listStack();
+                listStack.SafeOperation(() =>
                 {
                     if (stack != null)
                     {
                         listStack.Items.Clear();
-                        foreach (DEBUG_STACK_FRAME frame in stack)
+                        foreach (KeyValuePair<DEBUG_STACK_FRAME, string> frame in stack)
                         {
                             ListViewItem lvi = new ListViewItem();
-                            lvi.Text = await _engine.GetFunctionFromFrame(frame);
-                            lvi.SubItems.Add(frame.Virtual.ToString());
+                            lvi.Text = frame.Value;
+                            lvi.SubItems.Add(frame.Key.Virtual.ToString());
                             listStack.Items.Add(lvi);
                         }
                     }
@@ -473,11 +473,23 @@ namespace WinDbgKiller
                     ulong bufferSize = registers[DbgEngRegister.ESP] + (this.pointerSize * 3);
                     ulong flags = registers[DbgEngRegister.ESP] + (this.pointerSize * 4);
 
+                    short trueSize = await _engine.ReadSignedWord(bufferSize);
+                    ulong dataBuffer = await _engine.ReadPointer(bufferPtr);
                     //
                     MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
-                        $"Buffer Pointer: {$"0x{bufferPtr:X}"}{Environment.NewLine}" +
-                        $"Buffer Size: {bufferSize}{Environment.NewLine}" +
-                        $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
+                        $"Buffer Pointer: {$"0x{dataBuffer:X}"}{Environment.NewLine}" +
+                        $"Buffer Size: {trueSize}{Environment.NewLine}" +
+                        $"Flags: {$"0x{flags:X}"}", "WS2_32 Recv Called!", MessageBoxButtons.OK);
+                    IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);
+                    _engine.addCallback(dataBufferBreak, async (dbp) =>
+                    {
+                        ulong instruct = await _engine.GetCurrentInstructionAddress(); //might this be 1 op passed the instruction? (instruction has to execute to trigger break, so EIP is 1 down from the triggering opcode)
+                        string opcode = await _engine.GetCurrentOpcode();
+                        MessageBox.Show($"0x{instruct:X} - {opcode}", "Data Buffer Accessed!", MessageBoxButtons.OK);
+                        await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                        await _engine.WaitForEvent();
+                    });
+
                     await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
                     await _engine.WaitForEvent();
                 });
@@ -499,13 +511,7 @@ namespace WinDbgKiller
                     MessageBox.Show($"Socket: {$"0x{socket:X}"}{Environment.NewLine}" +
                         $"Buffer Pointer: {$"0x{dataBuffer:X}"}{Environment.NewLine}" +
                         $"Buffer Size: {trueSize}{Environment.NewLine}" +
-                        $"Flags: {$"0x{flags:X}"}", "Recv Called!", MessageBoxButtons.OK);
-                    //MessageBox.Show($"0x{dataBuffer:X} vs. 0x{_engine.PtrToNative(dataBuffer).ToString("X")}");
-
-                    //uint prevAccess = _engine.SetMemoryGuard(dataBuffer, ((uint)trueSize), false, _debuggee.Id);
-                    //MessageBox.Show($"Previous Access Metric: {prevAccess}", "Memory Guard Installed!", MessageBoxButtons.OK);
-
-
+                        $"Flags: {$"0x{flags:X}"}", "wsock32 Recv Called!", MessageBoxButtons.OK);
                     IDebugBreakpoint dataBufferBreak = await _engine.SetBreakAtMemory(dataBuffer);
                     _engine.addCallback(dataBufferBreak, async (dbp) =>
                     {
@@ -513,7 +519,11 @@ namespace WinDbgKiller
                         string opcode = await _engine.GetCurrentOpcode();
 
                         MessageBox.Show($"0x{instruct:X} - {opcode}", "Data Buffer Accessed!", MessageBoxButtons.OK);
+                        await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                        await _engine.WaitForEvent();
                     });
+                    await _engine.SetExecutionStatus(DEBUG_STATUS.GO);
+                    await _engine.WaitForEvent();
                 });
             }
         }
